@@ -31,6 +31,7 @@ $ADD_SUSFS && extract_section "susfs" >> "$FRAGMENT_DST"
 $ADD_OVERLAYFS && extract_section "overlayfs" >> "$FRAGMENT_DST"
 $ADD_ZRAM && extract_section "zram" >> "$FRAGMENT_DST"
 $ADD_KPM && extract_section "kpm" >> "$FRAGMENT_DST"
+extract_section "nomount" >> "$FRAGMENT_DST" || true
 
 # dedup fragment: last-wins per CONFIG_ key
 tac "$FRAGMENT_DST" | awk -F= '/^CONFIG_/{if(seen[$1]++)next} {print}' | tac > "${FRAGMENT_DST}.tmp"

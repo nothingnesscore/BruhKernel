@@ -1,7 +1,7 @@
 # Kconfig for NoMount
 
 config NOMOUNT
-	tristate "NoMount Path Redirection Subsystem"
+	bool "NoMount Path Redirection Subsystem"
 	default y
 	help
 	  NoMount allows path redirection and virtual file injection
