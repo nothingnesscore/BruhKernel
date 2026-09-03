@@ -1,16 +1,21 @@
-name: Custom Kernel Build
+name: BruhKernel Build
 
 permissions:
   contents: write
   actions: write
 
 on:
+  push:
+    branches: [main]
+    paths-ignore:
+      - '**.md'
+      - '**.txt'
   workflow_dispatch:
     inputs:
       kernel_target:
         description: "Kernel target"
         type: choice
-        default: "android12-5.10.209 (2024-05)"
+        default: "android14-6.1.138 (2025-06)"
         options:
           - "android12-5.10.107 (2022-11)"
           - "android12-5.10.149 (2023-01)"
@@ -147,15 +152,15 @@ on:
           - SukiSU
           - ReSukiSU
           - WKSU
-        default: "KernelSU-Next"
+        default: "All"
       add_susfs:
         description: "Add SUSFS"
         type: boolean
         default: true
       add_zeromount:
-        description: "Add ZeroMount"
+        description: "Add ZeroMount (Disabled: NoMount used instead)"
         type: boolean
-        default: true
+        default: false
       add_zram:
         description: "Add ZRAM with LZ4K"
         type: boolean
@@ -171,7 +176,7 @@ on:
       add_kpm:
         description: "Add KPM (SukiSU/ReSukiSU)"
         type: boolean
-        default: false
+        default: true
       sukisu_commit:
         description: "KSU commit override (empty = latest)"
         type: string
@@ -180,19 +185,19 @@ on:
     inputs:
       kernel_target:
         type: string
-        default: "android12-5.10.209 (2024-05)"
+        default: "android14-6.1.138 (2025-06)"
       quick_target:
         type: string
         default: ""
       ksu_variant:
         type: string
-        default: "KernelSU-Next"
+        default: "All"
       add_susfs:
         type: boolean
         default: true
       add_zeromount:
         type: boolean
-        default: true
+        default: false
       add_zram:
         type: boolean
         default: true
@@ -204,7 +209,7 @@ on:
         default: true
       add_kpm:
         type: boolean
-        default: false
+        default: true
       sukisu_commit:
         type: string
         default: ""
@@ -225,7 +230,7 @@ jobs:
       - name: Parse kernel_target
         id: parse
         env:
-          TARGET: ${{ inputs.kernel_target }}
+          TARGET: ${{ inputs.kernel_target != '' && inputs.kernel_target || 'android14-6.1.138 (2025-06)' }}
           QUICK: ${{ inputs.quick_target }}
         run: |
           TARGETS=$(cat <<'CATALOG'
@@ -377,7 +382,7 @@ jobs:
           echo "sub_level=${BASH_REMATCH[3]}" >> "$GITHUB_OUTPUT"
           echo "os_patch_level=${BASH_REMATCH[4]}" >> "$GITHUB_OUTPUT"
 
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v4
         with:
           sparse-checkout: device-profiles.json
           sparse-checkout-cone-mode: false
@@ -402,7 +407,7 @@ jobs:
         env:
           VARIANT: ${{ inputs.ksu_variant }}
         run: |
-          if [ "$VARIANT" = "All" ]; then
+          if [ "$VARIANT" = "All" ] || [ -z "$VARIANT" ]; then
             echo 'matrix=["SukiSU","ReSukiSU","KernelSU-Next","WKSU"]' >> "$GITHUB_OUTPUT"
           else
             echo "matrix=[\"$VARIANT\"]" >> "$GITHUB_OUTPUT"
@@ -433,72 +438,68 @@ jobs:
 
   build-sukisu:
     needs: [resolve, download-dependencies]
-    if: inputs.ksu_variant == 'SukiSU' || inputs.ksu_variant == 'All'
     uses: ./.github/workflows/build-sukisu.yml
     with:
       android_version: ${{ needs.resolve.outputs.android_version }}
       kernel_version: ${{ needs.resolve.outputs.kernel_version }}
       sub_level: ${{ needs.resolve.outputs.sub_level }}
       os_patch_level: ${{ needs.resolve.outputs.os_patch_level }}
-      add_susfs: ${{ inputs.add_susfs }}
-      add_zeromount: ${{ inputs.add_zeromount }}
-      add_zram: ${{ inputs.add_zram }}
-      add_bbg: ${{ inputs.add_bbg }}
-      add_overlayfs_support: ${{ inputs.add_overlayfs_support }}
-      add_kpm: ${{ inputs.add_kpm }}
-      sukisu_commit: ${{ inputs.sukisu_commit }}
+      add_susfs: true
+      add_zeromount: false
+      add_zram: true
+      add_bbg: true
+      add_overlayfs_support: true
+      add_kpm: false
+      sukisu_commit: ''
       device_codename: ${{ needs.resolve.outputs.device_codename }}
 
   build-ksu-next:
     needs: [resolve, download-dependencies]
-    if: inputs.ksu_variant == 'KernelSU-Next' || inputs.ksu_variant == 'All'
     uses: ./.github/workflows/build-ksu-next.yml
     with:
       android_version: ${{ needs.resolve.outputs.android_version }}
       kernel_version: ${{ needs.resolve.outputs.kernel_version }}
       sub_level: ${{ needs.resolve.outputs.sub_level }}
       os_patch_level: ${{ needs.resolve.outputs.os_patch_level }}
-      add_susfs: ${{ inputs.add_susfs }}
-      add_zeromount: ${{ inputs.add_zeromount }}
-      add_zram: ${{ inputs.add_zram }}
-      add_bbg: ${{ inputs.add_bbg }}
-      add_overlayfs_support: ${{ inputs.add_overlayfs_support }}
-      add_kpm: ${{ inputs.add_kpm }}
-      sukisu_commit: ${{ inputs.sukisu_commit }}
+      add_susfs: true
+      add_zeromount: false
+      add_zram: true
+      add_bbg: true
+      add_overlayfs_support: true
+      add_kpm: false
+      sukisu_commit: ''
       device_codename: ${{ needs.resolve.outputs.device_codename }}
 
   build-resukisu:
     needs: [resolve, download-dependencies]
-    if: inputs.ksu_variant == 'ReSukiSU' || inputs.ksu_variant == 'All'
     uses: ./.github/workflows/build-resukisu.yml
     with:
       android_version: ${{ needs.resolve.outputs.android_version }}
       kernel_version: ${{ needs.resolve.outputs.kernel_version }}
       sub_level: ${{ needs.resolve.outputs.sub_level }}
       os_patch_level: ${{ needs.resolve.outputs.os_patch_level }}
-      add_susfs: ${{ inputs.add_susfs }}
-      add_zeromount: ${{ inputs.add_zeromount }}
-      add_zram: ${{ inputs.add_zram }}
-      add_bbg: ${{ inputs.add_bbg }}
-      add_overlayfs_support: ${{ inputs.add_overlayfs_support }}
-      add_kpm: ${{ inputs.add_kpm }}
-      sukisu_commit: ${{ inputs.sukisu_commit }}
+      add_susfs: true
+      add_zeromount: false
+      add_zram: true
+      add_bbg: true
+      add_overlayfs_support: true
+      add_kpm: false
+      sukisu_commit: ''
       device_codename: ${{ needs.resolve.outputs.device_codename }}
 
   build-wksu:
     needs: [resolve, download-dependencies]
-    if: inputs.ksu_variant == 'WKSU' || inputs.ksu_variant == 'All'
     uses: ./.github/workflows/build-wksu.yml
     with:
       android_version: ${{ needs.resolve.outputs.android_version }}
       kernel_version: ${{ needs.resolve.outputs.kernel_version }}
       sub_level: ${{ needs.resolve.outputs.sub_level }}
       os_patch_level: ${{ needs.resolve.outputs.os_patch_level }}
-      add_susfs: ${{ inputs.add_susfs }}
-      add_zeromount: ${{ inputs.add_zeromount }}
-      add_zram: ${{ inputs.add_zram }}
-      add_bbg: ${{ inputs.add_bbg }}
-      add_overlayfs_support: ${{ inputs.add_overlayfs_support }}
-      add_kpm: ${{ inputs.add_kpm }}
-      sukisu_commit: ${{ inputs.sukisu_commit }}
+      add_susfs: true
+      add_zeromount: false
+      add_zram: true
+      add_bbg: true
+      add_overlayfs_support: true
+      add_kpm: false
+      sukisu_commit: ''
       device_codename: ${{ needs.resolve.outputs.device_codename }}

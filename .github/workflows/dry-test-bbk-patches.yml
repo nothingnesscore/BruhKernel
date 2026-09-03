@@ -31,7 +31,7 @@ jobs:
       matrix: ${{ steps.resolve.outputs.result }}
     steps:
     - name: Checkout Repository
-      uses: actions/checkout@v6
+      uses: actions/checkout@v4
 
     - id: resolve
       env:
@@ -78,7 +78,7 @@ jobs:
 
     steps:
     - name: Checkout Repository
-      uses: actions/checkout@v6
+      uses: actions/checkout@v4
 
     - name: Install Build Dependencies
       run: |
@@ -414,7 +414,7 @@ jobs:
 
     - name: Upload Rejects
       if: always() && env.REJ_COUNT > 0
-      uses: actions/upload-artifact@v7
+      uses: actions/upload-artifact@v4
       with:
         name: dry-test-bbk-${{ matrix.device }}-rejects
         path: patch-rejects/

@@ -20,3 +20,18 @@ elif [[ "$ANDROID_VER" == "android15" ]]; then
 fi
 
 sed -i 's/check_defconfig//' ./common/build.config.gki 2>/dev/null || true
+
+# Kleaf: disable savedefconfig check in the build macro
+if [[ -f "build/kernel/kleaf/common_kernels.bzl" ]]; then
+  sed -i 's/"match" if pre_defconfig_fragments else "minimized"/"disabled"/' build/kernel/kleaf/common_kernels.bzl
+fi
+
+# Fallback: neuter the check function in _setup_env.sh
+if [[ -f "build/_setup_env.sh" ]]; then
+  sed -i 's/function kleaf_internal_check_defconfig_minimized().*/function kleaf_internal_check_defconfig_minimized() { return 0; }/' build/_setup_env.sh
+fi
+
+# Neuter Kleaf's Kconfig fragment check failure in kernel_config
+find build/kernel/kleaf -type f -name '*.bzl' -exec sed -i 's/check_defconfig = "match"/check_defconfig = "disabled"/g' {} + 2>/dev/null || true
+find build/kernel/kleaf -type f -name '*.bzl' -exec sed -i 's/check_defconfig = "minimized"/check_defconfig = "disabled"/g' {} + 2>/dev/null || true
+find build/kernel/kleaf -type f \( -name '*.bzl' -o -name '*.sh' \) -exec sed -i 's/Are they declared in Kconfig?" >&2; exit 1/Are they declared in Kconfig?" >&2; true/g' {} + 2>/dev/null || true

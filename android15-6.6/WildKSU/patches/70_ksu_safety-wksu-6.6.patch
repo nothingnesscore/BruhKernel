@@ -1,7 +1,8 @@
+diff --git a/kernel/supercalls.c b/kernel/supercalls.c
+index ca17760..8fa0e8b 100644
 --- a/kernel/supercalls.c
 +++ b/kernel/supercalls.c
-@@ -1068,6 +1068,12 @@
-         if (cmd == CMD_SUSFS_ADD_SUS_KSTAT_STATICALLY) {
+@@ -1062,6 +1062,12 @@ int ksu_handle_sys_reboot(int magic1, int magic2, unsigned int cmd, void __user
              susfs_add_sus_kstat(arg);
              return 0;
          }

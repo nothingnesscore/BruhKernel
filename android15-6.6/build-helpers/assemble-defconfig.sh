@@ -23,7 +23,7 @@ for arg in "$@"; do
 done
 
 extract_section() {
-  awk "/^# \\[$1\\]/{found=1; next} /^# \\[/{found=0} found && NF" "$FRAGMENT_SRC"
+  awk "/^# \[$1\]/{found=1; next} /^# \[/{found=0} found && NF" "$FRAGMENT_SRC"
 }
 
 extract_section "base" >> "$FRAGMENT_DST"
@@ -38,7 +38,7 @@ mv "${FRAGMENT_DST}.tmp" "$FRAGMENT_DST"
 
 if $USE_KLEAF; then
   # Kleaf applies fragment via --defconfig_fragment; don't touch gki_defconfig
-  # Convert =n to "# is not set" format (Kleaf can't match =n against savedefconfig)
+  # Convert =n to "# CONFIG_X is not set" format
   sed -i 's/^\(CONFIG_[A-Za-z0-9_]*\)=n$/# \1 is not set/' "$FRAGMENT_DST"
 else
   # Legacy build.sh doesn't merge fragments — configs must be in gki_defconfig
@@ -47,7 +47,7 @@ else
   cat "$FRAGMENT_DST" >> "$DEFCONFIG"
 fi
 
-if $ADD_ZRAM && ! $USE_KLEAF; then
+if $ADD_ZRAM; then
   sed -i 's/CONFIG_ZRAM=m/CONFIG_ZRAM=y/g' "$DEFCONFIG" 2>/dev/null || true
   sed -i 's/CONFIG_ZSMALLOC=m/CONFIG_ZSMALLOC=y/g' "$DEFCONFIG" 2>/dev/null || true
 fi

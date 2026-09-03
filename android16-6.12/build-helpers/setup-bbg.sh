@@ -12,5 +12,7 @@ if [ -n "$FRAGMENT" ]; then
 else
   echo "CONFIG_BBG=y" >> "$DEFCONFIG"
 fi
-# lockdown is the LSM anchor on 5.10 kernels
-sed -i '/^config LSM$/,/^help$/{ /^[[:space:]]*default/ { /baseband_guard/! s/lockdown/lockdown,baseband_guard/ } }' common/security/Kconfig
+# lockdown is the LSM anchor on 5.10+ kernels
+if [ -f "common/security/Kconfig" ]; then
+  sed -i '/^config LSM$/,/^help$/{ /^[[:space:]]*default/ { /baseband_guard/! s/lockdown/lockdown,baseband_guard/ } }' common/security/Kconfig
+fi

@@ -31,7 +31,7 @@ jobs:
         chmod 0755 git-repo/repo
 
     - name: Upload AnyKernel3
-      uses: actions/upload-artifact@v7
+      uses: actions/upload-artifact@v4
       with:
         name: anykernel3
         path: AnyKernel3/
@@ -39,7 +39,7 @@ jobs:
         compression-level: 6
 
     - name: Upload Kernel Patches
-      uses: actions/upload-artifact@v7
+      uses: actions/upload-artifact@v4
       with:
         name: kernel-patches
         path: kernel_patches/
@@ -47,7 +47,7 @@ jobs:
         compression-level: 6
 
     - name: Upload SukiSU Patch
-      uses: actions/upload-artifact@v7
+      uses: actions/upload-artifact@v4
       with:
         name: sukisu-patch
         path: SukiSU_patch/
@@ -55,7 +55,7 @@ jobs:
         compression-level: 6
 
     - name: Upload Git Repo Tool
-      uses: actions/upload-artifact@v7
+      uses: actions/upload-artifact@v4
       with:
         name: git-repo-tool
         path: git-repo/

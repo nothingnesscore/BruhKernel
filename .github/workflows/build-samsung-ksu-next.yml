@@ -100,7 +100,7 @@ jobs:
 
   build:
     needs: [download-dependencies]
-    name: "Samsung KernelSU-Next — ${{ inputs.device }}"
+    name: "Samsung KernelSU-Next â€” ${{ inputs.device }}"
     runs-on: ubuntu-latest
     timeout-minutes: 120
     env:
@@ -130,7 +130,7 @@ jobs:
         sudo apt-get install -y -qq lld binutils flex bison libssl-dev libelf-dev libdw-dev dwarves gcc-aarch64-linux-gnu
 
     - name: Checkout Repository
-      uses: actions/checkout@v6
+      uses: actions/checkout@v4
 
     - name: Parse Device Registry
       run: |
@@ -269,7 +269,7 @@ jobs:
         echo "Kernel: ${KERNEL_VER}.${SUBLEVEL}"
 
     - name: Download AnyKernel3
-      uses: actions/download-artifact@v8
+      uses: actions/download-artifact@v4
       with:
         name: anykernel3
         path: AnyKernel3
@@ -345,7 +345,7 @@ jobs:
 
     - name: Download Kernel Patches
       if: inputs.add_ptrace_fix || inputs.add_perf_patches
-      uses: actions/download-artifact@v8
+      uses: actions/download-artifact@v4
       with:
         name: kernel-patches
         path: kernel_patches
@@ -470,14 +470,28 @@ jobs:
     - name: Dump Build Errors
       if: failure()
       run: |
-        echo "::group::Build directory structure"
-        ls -la "$SYNC_DIR/kernel_platform/" 2>/dev/null || true
-        echo "::endgroup::"
-        for LOG in $(find "$SYNC_DIR" -name '*.log' -type f 2>/dev/null | head -5); do
-          echo "::group::$(basename "$LOG")"
-          tail -80 "$LOG"
-          echo "::endgroup::"
+        echo "=== Searching for build logs ==="
+        # Copy logs to a directory
+        mkdir -p $GITHUB_WORKSPACE/debug-logs
+        
+        # Bazel logs
+        for BLOG in $(find "$HOME/.cache/bazel" -name 'command.log' 2>/dev/null | head -3); do
+          cp "$BLOG" "$GITHUB_WORKSPACE/debug-logs/bazel_command_$(basename $(dirname $BLOG)).log"
         done
+        # Kernel logs
+        for LOG in $(find "$KERNEL_ROOT" -name '*.log' -newer "$KERNEL_ROOT/common" -type f 2>/dev/null | head -5); do
+          cp "$LOG" "$GITHUB_WORKSPACE/debug-logs/$(basename "$LOG")"
+        done
+        
+        # Push to debug-logs branch
+        cd $GITHUB_WORKSPACE
+        git config user.name "github-actions[bot]"
+        git config user.email "github-actions[bot]@users.noreply.github.com"
+        git fetch origin
+        git checkout -B debug-logs
+        git add debug-logs/
+        git commit -m "chore: upload build failure logs"
+        git push origin debug-logs --force
 
     - name: Prepare AnyKernel3
       run: |
@@ -544,7 +558,7 @@ jobs:
         fi
 
     - name: Upload Artifact
-      uses: actions/upload-artifact@v7
+      uses: actions/upload-artifact@v4
       with:
         name: ${{ env.FILE_NAME }}-AnyKernel3
         path: ./AnyKernel3/**
@@ -553,7 +567,7 @@ jobs:
 
     - name: Upload Rejects
       if: always() && env.REJ_COUNT > 0
-      uses: actions/upload-artifact@v7
+      uses: actions/upload-artifact@v4
       with:
         name: ${{ env.FILE_NAME }}-Rejects
         path: patch-rejects/
@@ -571,7 +585,7 @@ jobs:
       run: |
         S() { [[ "$1" == "true" ]] && echo "Enabled" || echo "Disabled"; }
         {
-          echo "## KernelSU-Next | ${DEVICE_NAME} — ${KERNEL_VER}.${SUBLEVEL}"
+          echo "## KernelSU-Next | ${DEVICE_NAME} â€” ${KERNEL_VER}.${SUBLEVEL}"
           echo ""
           echo "| Feature | Status |"
           echo "|---------|--------|"

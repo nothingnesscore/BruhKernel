@@ -124,17 +124,26 @@ fi
 # CONFIG_KSU_SUSFS and CONFIG_KSU_MANUAL_HOOK are defined, both compile,
 # causing a redefinition error. Remove the 6.8+ block.
 # ---------------------------------------------------------------------------
-SETUID="$KERNEL_DIR/drivers/kernelsu/setuid_hook.c"
+SETUID=$(find "$KERNEL_DIR" -type f -name "setuid_hook.c" | head -n 1)
 if [ -f "$SETUID" ]; then
     DUPS=$(grep -c 'int ksu_handle_setresuid' "$SETUID")
     if [ "$DUPS" -gt 1 ]; then
         echo "fix-susfs-compat: removing duplicate ksu_handle_setresuid (6.8+ MANUAL_HOOK block)"
         python3 - "$SETUID" << 'PYEOF'
-import sys
+import sys, re
 path = sys.argv[1]
 with open(path) as f:
     lines = f.readlines()
-start = next((i for i, l in enumerate(lines) if 'KERNEL_VERSION(6, 8, 0)' in l), None)
+occurrences = [i for i, l in enumerate(lines) if 'int ksu_handle_setresuid' in l]
+if len(occurrences) > 1:
+    target_idx = occurrences[1]
+    start = None
+    for i in range(target_idx, -1, -1):
+        if lines[i].strip().startswith('#if'):
+            start = i
+            break
+else:
+    start = None
 if start is not None:
     depth, end = 0, None
     for i in range(start, len(lines)):
@@ -163,4 +172,66 @@ else
 fi
 
 echo "fix-susfs-compat: done"
+
+# ---------------------------------------------------------------------------
+# Fix 7: core/init.c - susfs.h include order
+# When susfs.h is included BEFORE fs.h, transitive includes (like signal.h)
+# can break because arch-specific macros (_NSIG) aren't set yet, leading to
+# array bounds errors. Ensure susfs.h comes AFTER fs.h.
+# ---------------------------------------------------------------------------
+INIT_C=$(find "$KERNEL_DIR" -type f -name "init.c" | grep -i "core/init.c" | head -n 1)
+if [ -f "$INIT_C" ]; then
+    if grep -q '#include <linux/susfs.h>' "$INIT_C"; then
+        echo "fix-susfs-compat: ensuring susfs.h is included after fs.h in init.c"
+        python3 - "$INIT_C" << 'PYEOF'
+import sys
+path = sys.argv[1]
+with open(path) as f:
+    content = f.read()
+
+import re
+
+# Find if susfs.h comes before fs.h
+idx_susfs = content.find('<linux/susfs.h>')
+idx_fs = content.find('<linux/fs.h>')
+
+if idx_susfs != -1 and idx_fs != -1 and idx_susfs < idx_fs:
+    # It's before fs.h! We need to move it.
+    # We will remove any line containing susfs.h, and its surrounding #ifdef/#endif if they exist adjacently
+    lines = content.split('\n')
+    out_lines = []
+    susfs_lines = []
+    
+    i = 0
+    while i < len(lines):
+        if '<linux/susfs.h>' in lines[i]:
+            # Extract this line
+            susfs_block = [lines[i]]
+            # Check if previous line is #ifdef CONFIG_KSU_SUSFS
+            if i > 0 and '#ifdef' in lines[i-1] and 'CONFIG_KSU_SUSFS' in lines[i-1]:
+                susfs_block.insert(0, out_lines.pop())
+                # Check if next line is #endif
+                if i + 1 < len(lines) and '#endif' in lines[i+1]:
+                    susfs_block.append(lines[i+1])
+                    i += 1
+            susfs_lines.extend(susfs_block)
+        else:
+            out_lines.append(lines[i])
+        i += 1
+        
+    # Now insert susfs_lines after <linux/fs.h>
+    final_lines = []
+    for line in out_lines:
+        final_lines.append(line)
+        if '<linux/fs.h>' in line:
+            final_lines.extend(susfs_lines)
+            
+    with open(path, 'w') as f:
+        f.write('\n'.join(final_lines))
+PYEOF
+    fi
+else
+    echo "fix-susfs-compat: core/init.c not found - skipping include order fix"
+fi
+
 exit 0

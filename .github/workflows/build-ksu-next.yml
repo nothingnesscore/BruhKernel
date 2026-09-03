@@ -61,7 +61,7 @@ jobs:
 
     steps:
     - name: Checkout Repository
-      uses: actions/checkout@v6
+      uses: actions/checkout@v4
 
     - name: Free Disk Space
       uses: endersonmenezes/free-disk-space@v3
@@ -82,26 +82,26 @@ jobs:
       run: sudo apt-get install -y -qq lld binutils
 
     - name: Download AnyKernel3 Artifact
-      uses: actions/download-artifact@v8
+      uses: actions/download-artifact@v4
       with:
         name: anykernel3
         path: AnyKernel3
 
     - name: Download Git Repo Tool Artifact
-      uses: actions/download-artifact@v8
+      uses: actions/download-artifact@v4
       with:
         name: git-repo-tool
         path: git-repo
 
     - name: Download Kernel Patches Artifact
-      uses: actions/download-artifact@v8
+      uses: actions/download-artifact@v4
       with:
         name: kernel-patches
         path: kernel_patches
 
     - name: Download SukiSU Patch
       if: inputs.add_zram
-      uses: actions/download-artifact@v8
+      uses: actions/download-artifact@v4
       with:
         name: sukisu-patch
         path: SukiSU_patch
@@ -224,6 +224,37 @@ jobs:
           echo "No 70_ patch needed"
         fi
 
+        # Dereference symlink / sync patched KSU into common/drivers/kernelsu for Bazel sandbox
+        if [ -L "$KERNEL_ROOT/common/drivers/kernelsu" ]; then
+          KSU_TARGET=$(readlink -f "$KERNEL_ROOT/common/drivers/kernelsu")
+          rm -f "$KERNEL_ROOT/common/drivers/kernelsu"
+          cp -r "$KSU_TARGET" "$KERNEL_ROOT/common/drivers/kernelsu"
+        fi
+
+        # Ensure uapi headers are available to drivers/kernelsu
+        if [ -d "$KERNEL_ROOT/$KSU_DIR/uapi" ]; then
+          cp -r "$KERNEL_ROOT/$KSU_DIR/uapi" "$KERNEL_ROOT/common/drivers/kernelsu/uapi"
+          cp -r "$KERNEL_ROOT/$KSU_DIR/uapi" "$KERNEL_ROOT/common/drivers/uapi"
+          echo "[+] Synced $KSU_DIR/uapi to common/drivers"
+        fi
+
+    - name: Integrate NoMount
+      working-directory: ${{ env.KERNEL_ROOT }}/common
+      run: |
+        NM_SRC="$GITHUB_WORKSPACE/$VERSION_DIR/nomount_src"
+        if [ -d "$NM_SRC" ]; then
+          echo "[+] Integrating NoMount into kernel source..."
+          mkdir -p fs/nomount
+          cp -f "$NM_SRC"/* fs/nomount/
+          if ! grep -q "nomount" fs/Makefile; then
+            printf "\nobj-\$(CONFIG_NOMOUNT) += nomount/\n" >> fs/Makefile
+          fi
+          if ! grep -q 'source "fs/nomount/Kconfig"' fs/Kconfig; then
+            sed -i '/endmenu/i source "fs/nomount/Kconfig"' fs/Kconfig
+          fi
+          echo "[OK] NoMount source integrated."
+        fi
+
     - name: Apply ZeroMount Patch
       if: inputs.add_zeromount && inputs.add_susfs
       working-directory: ${{ env.KERNEL_ROOT }}/common
@@ -301,9 +332,11 @@ jobs:
 
         while IFS='=' read -r cfg _; do
           symbol="${cfg#CONFIG_}"
-          grep -Rqx "config ${symbol}" common/ ${KSU_DIR:+$KSU_DIR/} --include='Kconfig*' 2>/dev/null && continue
-          sed -i "/^${cfg}=/d" "$DEFCONFIG_FRAGMENT" "$DEFCONFIG"
-        done < <(grep '^CONFIG_KSU_' "$DEFCONFIG_FRAGMENT" 2>/dev/null || true)
+          [[ "$cfg" =~ ^CONFIG_ ]] || continue
+          grep -Rqw "config ${symbol}" common/ --include='Kconfig*' 2>/dev/null && continue
+          echo "Pruning undeclared config symbol: ${cfg}"
+          sed -i "/^${cfg}=/d" "$DEFCONFIG_FRAGMENT" "$DEFCONFIG" 2>/dev/null || true
+        done < <(grep '^CONFIG_' "$DEFCONFIG_FRAGMENT" 2>/dev/null || true)
 
         if ! grep -q '^CONFIG_KSU_SUSFS=' "$DEFCONFIG_FRAGMENT" 2>/dev/null; then
           sed -i '/^CONFIG_KSU_SUSFS_/d' "$DEFCONFIG_FRAGMENT" "$DEFCONFIG"
@@ -373,7 +406,7 @@ jobs:
         STOCK_BUILD_HOST=$(jq -r ".devices.${DEVICE_CODENAME}.stock_kernel.build_host" "$PROFILE_FILE")
         STOCK_COMPILER=$(jq -r ".devices.${DEVICE_CODENAME}.stock_kernel.compiler_info // empty" "$PROFILE_FILE")
 
-        # 5.10–6.1: Makefile prepends KERNELVERSION, setlocalversion outputs suffix only
+        # 5.10â€“6.1: Makefile prepends KERNELVERSION, setlocalversion outputs suffix only
         # 6.6+: Makefile delegates entirely to setlocalversion, must output full version
         MAJOR=${KERNEL_VER%%.*}
         MINOR=${KERNEL_VER#*.}
@@ -416,12 +449,12 @@ jobs:
         if [ -f "build/build.sh" ]; then
           KMI_SYMBOL_LIST_STRICT_MODE=0 HOSTLD=/usr/bin/ld.lld GKI_DEFCONFIG_FRAGMENT="$DEFCONFIG_FRAGMENT" LTO=$LTO_MODE BUILD_CONFIG=common/build.config.gki.aarch64 build/build.sh || BUILD_RC=$?
         else
-          # Prebuilt clang sysroot lacks glibc 2.39 C23 symbols — link against system libc
+          # Prebuilt clang sysroot lacks glibc 2.39 C23 symbols â€” link against system libc
           if [ -f common/tools/bpf/resolve_btfids/Makefile ]; then
             echo 'override KBUILD_HOSTLDFLAGS += --sysroot=/' >> common/tools/bpf/resolve_btfids/Makefile
             echo 'override LDFLAGS += --sysroot=/' >> common/tools/bpf/resolve_btfids/Makefile
           fi
-          tools/bazel build --config=fast --lto=$LTO_MODE --defconfig_fragment=//common:arch/arm64/configs/sukisu_gki.fragment //common:kernel_aarch64_dist || BUILD_RC=$?
+          tools/bazel build --config=fast --verbose_failures --lto=$LTO_MODE --defconfig_fragment=//common:arch/arm64/configs/sukisu_gki.fragment //common:kernel_aarch64_dist || BUILD_RC=$?
         fi
         if [ "$BUILD_RC" -ne 0 ]; then
           if find . -name "Image" -type f 2>/dev/null | grep -q .; then
@@ -434,11 +467,28 @@ jobs:
     - name: Dump Build Errors
       if: failure()
       run: |
-        for LOG in $(find "$KERNEL_ROOT" -name '*.log' -newer "$KERNEL_ROOT/common" -type f 2>/dev/null | head -5); do
-          echo "::group::$(basename "$LOG")"
-          tail -80 "$LOG"
-          echo "::endgroup::"
+        echo "=== Searching for build logs ==="
+        # Copy logs to a directory
+        mkdir -p $GITHUB_WORKSPACE/debug-logs
+        
+        # Bazel logs
+        for BLOG in $(find "$HOME/.cache/bazel" -name 'command.log' 2>/dev/null | head -3); do
+          cp "$BLOG" "$GITHUB_WORKSPACE/debug-logs/bazel_command_$(basename $(dirname $BLOG)).log"
         done
+        # Kernel logs
+        for LOG in $(find "$KERNEL_ROOT" -name '*.log' -newer "$KERNEL_ROOT/common" -type f 2>/dev/null | head -5); do
+          cp "$LOG" "$GITHUB_WORKSPACE/debug-logs/$(basename "$LOG")"
+        done
+        
+        # Push to debug-logs branch
+        cd $GITHUB_WORKSPACE
+        git config user.name "github-actions[bot]"
+        git config user.email "github-actions[bot]@users.noreply.github.com"
+        git fetch origin
+        git checkout -B debug-logs
+        git add debug-logs/
+        git commit -m "chore: upload build failure logs"
+        git push origin debug-logs --force
 
     - name: Prepare AnyKernel3
       run: |
@@ -472,7 +522,7 @@ jobs:
         fi
 
     - name: Upload Artifact
-      uses: actions/upload-artifact@v7
+      uses: actions/upload-artifact@v4
       with:
         name: ${{ env.FILE_NAME }}-AnyKernel3
         path: ./AnyKernel3/**
@@ -481,7 +531,7 @@ jobs:
 
     - name: Upload Rejects
       if: always() && env.REJ_COUNT > 0
-      uses: actions/upload-artifact@v7
+      uses: actions/upload-artifact@v4
       with:
         name: ${{ env.FILE_NAME }}-Rejects
         path: patch-rejects/

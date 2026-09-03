@@ -124,17 +124,26 @@ fi
 # CONFIG_KSU_SUSFS and CONFIG_KSU_MANUAL_HOOK are defined, both compile,
 # causing a redefinition error. Remove the 6.8+ block.
 # ---------------------------------------------------------------------------
-SETUID="$KERNEL_DIR/drivers/kernelsu/setuid_hook.c"
+SETUID=$(find "$KERNEL_DIR" -type f -name "setuid_hook.c" | head -n 1)
 if [ -f "$SETUID" ]; then
     DUPS=$(grep -c 'int ksu_handle_setresuid' "$SETUID")
     if [ "$DUPS" -gt 1 ]; then
         echo "fix-susfs-compat: removing duplicate ksu_handle_setresuid (6.8+ MANUAL_HOOK block)"
         python3 - "$SETUID" << 'PYEOF'
-import sys
+import sys, re
 path = sys.argv[1]
 with open(path) as f:
     lines = f.readlines()
-start = next((i for i, l in enumerate(lines) if 'KERNEL_VERSION(6, 8, 0)' in l), None)
+occurrences = [i for i, l in enumerate(lines) if 'int ksu_handle_setresuid' in l]
+if len(occurrences) > 1:
+    target_idx = occurrences[1]
+    start = None
+    for i in range(target_idx, -1, -1):
+        if lines[i].strip().startswith('#if'):
+            start = i
+            break
+else:
+    start = None
 if start is not None:
     depth, end = 0, None
     for i in range(start, len(lines)):
@@ -163,4 +172,128 @@ else
 fi
 
 echo "fix-susfs-compat: done"
+
+# ---------------------------------------------------------------------------
+# Fix 7: core/init.c - susfs.h include order
+# When susfs.h is included BEFORE fs.h, transitive includes (like signal.h)
+# can break because arch-specific macros (_NSIG) aren't set yet, leading to
+# array bounds errors. Ensure susfs.h comes AFTER fs.h.
+# ---------------------------------------------------------------------------
+INIT_C=$(find "$KERNEL_DIR" -type f -name "init.c" | grep -i "core/init.c" | head -n 1)
+if [ -f "$INIT_C" ]; then
+    if grep -q '#include <linux/susfs.h>' "$INIT_C"; then
+        echo "fix-susfs-compat: ensuring susfs.h is included after fs.h in init.c"
+        python3 - "$INIT_C" << 'PYEOF'
+import sys
+path = sys.argv[1]
+with open(path) as f:
+    content = f.read()
+
+import re
+
+# Find if susfs.h comes before fs.h
+idx_susfs = content.find('<linux/susfs.h>')
+idx_fs = content.find('<linux/fs.h>')
+
+if idx_susfs != -1 and idx_fs != -1 and idx_susfs < idx_fs:
+    # It's before fs.h! We need to move it.
+    # We will remove any line containing susfs.h, and its surrounding #ifdef/#endif if they exist adjacently
+    lines = content.split('\n')
+    out_lines = []
+    susfs_lines = []
+    
+    i = 0
+    while i < len(lines):
+        if '<linux/susfs.h>' in lines[i]:
+            # Extract this line
+            susfs_block = [lines[i]]
+            # Check if previous line is #ifdef CONFIG_KSU_SUSFS
+            if i > 0 and '#ifdef' in lines[i-1] and 'CONFIG_KSU_SUSFS' in lines[i-1]:
+                susfs_block.insert(0, out_lines.pop())
+                # Check if next line is #endif
+                if i + 1 < len(lines) and '#endif' in lines[i+1]:
+                    susfs_block.append(lines[i+1])
+                    i += 1
+            susfs_lines.extend(susfs_block)
+        else:
+            out_lines.append(lines[i])
+        i += 1
+        
+    # Now insert susfs_lines after <linux/fs.h>
+    final_lines = []
+    for line in out_lines:
+        final_lines.append(line)
+        if '<linux/fs.h>' in line:
+            final_lines.extend(susfs_lines)
+            
+    with open(path, 'w') as f:
+        f.write('\n'.join(final_lines))
+PYEOF
+    fi
+else
+    echo "fix-susfs-compat: core/init.c not found - skipping include order fix"
+fi
+
+
+# ---------------------------------------------------------------------------
+# Fix 8: include/linux/susfs_def.h missing headers for thread_flags & current_uid
+# ---------------------------------------------------------------------------
+SUSFS_DEF="$KERNEL_DIR/include/linux/susfs_def.h"
+if [ -f "$SUSFS_DEF" ]; then
+    if ! grep -q '<linux/cred.h>' "$SUSFS_DEF"; then
+        echo "fix-susfs-compat: injecting sched.h, cred.h, thread_info.h into susfs_def.h"
+        sed -i '/#include <linux\/string.h>/a #include <linux/sched.h>\n#include <linux/cred.h>\n#include <linux/thread_info.h>' "$SUSFS_DEF"
+    fi
+fi
+
+# ---------------------------------------------------------------------------
+# Fix 10: Multi-Variant KSU/SUSFS Linker Compatibility Stubs
+# When building KernelSU-Next or WildKSU, SukiSU-specific SUSFS hooks in
+# 50_ patch (input hook, init_rc hook, reboot hook, selinux hide, stat hooks)
+# lack strong definitions, causing ld.lld undefined symbol failures.
+# We inject weak stubs into fs/susfs_compat_stubs.c. Strong definitions in
+# SukiSU will override them, while KSUN and WKSU will link successfully.
+# ---------------------------------------------------------------------------
+STUBS_FILE="$KERNEL_DIR/fs/susfs_compat_stubs.c"
+if [ -d "$KERNEL_DIR/fs" ]; then
+    echo "fix-susfs-compat: creating fs/susfs_compat_stubs.c for multi-variant KSU compatibility"
+    cat > "$STUBS_FILE" << 'EOF_STUBS'
+#include <linux/types.h>
+#include <linux/jump_label.h>
+#include <linux/fs.h>
+#include <linux/cred.h>
+#include <linux/mm.h>
+#include <linux/errno.h>
+
+struct static_key_false fake_status_initialize_key __attribute__((weak)) = STATIC_KEY_FALSE_INIT;
+struct static_key_true ksu_is_init_rc_hook_enabled __attribute__((weak)) = STATIC_KEY_TRUE_INIT;
+struct static_key_true ksu_is_input_hook_enabled __attribute__((weak)) = STATIC_KEY_TRUE_INIT;
+struct static_key_true ksu_su_compat_enabled __attribute__((weak)) = STATIC_KEY_TRUE_INIT;
+
+__attribute__((weak, cold)) int ksu_handle_input_handle_event(unsigned int *type, unsigned int *code, int *value) { return 0; }
+__attribute__((weak, cold)) void ksu_handle_sys_read(unsigned int fd) {}
+__attribute__((weak)) int ksu_handle_sys_reboot(int magic1, int magic2, unsigned int cmd, void __user **arg) { return 1; }
+__attribute__((weak)) int ksu_handle_faccessat(int *dfd, struct filename **filename, int *mode, int *__unused_flags) { return 0; }
+__attribute__((weak)) int ksu_handle_stat(int *dfd, struct filename **filename, int *flags) { return 0; }
+__attribute__((weak)) void ksu_handle_vfs_fstat(int fd, loff_t *kstat_size_ptr) {}
+__attribute__((weak)) int ksu_handle_execveat(int *fd, struct filename **filename_ptr, void *argv, void *envp, int *flags) { return 0; }
+__attribute__((weak)) int ksu_handle_execveat_sucompat(int *fd, struct filename **filename_ptr, void *argv, void *envp, int *flags) { return 0; }
+__attribute__((weak)) int ksu_handle_setresuid(uid_t ruid, uid_t euid, uid_t suid) { return 0; }
+__attribute__((weak)) bool __ksu_is_allow_uid_for_current(uid_t uid) { return false; }
+__attribute__((weak)) void susfs_run_sus_path_loop(void) {}
+
+struct page *fake_status __attribute__((weak)) = NULL;
+char fake_state[4096] __attribute__((weak, aligned(64))) = {0};
+bool ksu_selinux_hide_running __attribute__((weak)) = false;
+bool ksu_selinux_hide_enabled __attribute__((weak)) = false;
+__attribute__((weak)) void initialize_fake_status(void) {}
+EOF_STUBS
+
+    FS_MAKEFILE="$KERNEL_DIR/fs/Makefile"
+    if [ -f "$FS_MAKEFILE" ] && ! grep -q "susfs_compat_stubs.o" "$FS_MAKEFILE"; then
+        echo "fix-susfs-compat: adding susfs_compat_stubs.o to fs/Makefile"
+        echo 'obj-$(CONFIG_KSU_SUSFS) += susfs_compat_stubs.o' >> "$FS_MAKEFILE"
+    fi
+fi
+
 exit 0

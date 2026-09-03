@@ -1,7 +1,8 @@
-diff -ruN clean/kernel/supercalls.c work/kernel/supercalls.c
---- a/kernel/supercalls.c	2026-03-02 18:37:34.153901650 +0100
-+++ b/kernel/supercalls.c	2026-03-03 19:28:53.681580207 +0100
-@@ -992,6 +992,12 @@
+diff --git a/kernel/supercalls.c b/kernel/supercalls.c
+index ca17760..8fa0e8b 100644
+--- a/kernel/supercalls.c
++++ b/kernel/supercalls.c
+@@ -1062,6 +1062,12 @@ int ksu_handle_sys_reboot(int magic1, int magic2, unsigned int cmd, void __user
              susfs_add_sus_kstat(arg);
              return 0;
          }
@@ -11,6 +12,6 @@ diff -ruN clean/kernel/supercalls.c work/kernel/supercalls.c
 +            return 0;
 +        }
 +#endif
- #endif //#ifdef CONFIG_KSU_SUSFS_SUS_KSTAT
+ #endif // #ifdef CONFIG_KSU_SUSFS_SUS_KSTAT
  #ifdef CONFIG_KSU_SUSFS_SPOOF_UNAME
          if (cmd == CMD_SUSFS_SET_UNAME) {

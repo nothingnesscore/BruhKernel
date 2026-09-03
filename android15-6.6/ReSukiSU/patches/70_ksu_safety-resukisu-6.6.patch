@@ -1,16 +1,17 @@
---- a/kernel/supercall/supercall.c
-+++ b/kernel/supercall/supercall.c
-@@ -170,6 +170,12 @@
-         if (cmd == CMD_SUSFS_ADD_SUS_KSTAT_STATICALLY) {
-             susfs_add_sus_kstat(arg);
-             return 0;
-         }
+diff --git a/kernel/supercall/dispatch.c b/kernel/supercall/dispatch.c
+index 242b571..c2fefa5 100644
+--- a/kernel/supercall/dispatch.c
++++ b/kernel/supercall/dispatch.c
+@@ -1018,6 +1018,12 @@ int ksu_handle_susfs_cmd(unsigned int cmd, void __user **arg)
+         susfs_add_sus_kstat(arg);
+         return 0;
+     }
 +#ifdef CONFIG_KSU_SUSFS_SUS_KSTAT_REDIRECT
-+        if (cmd == CMD_SUSFS_ADD_SUS_KSTAT_REDIRECT) {
-+            susfs_add_sus_kstat_redirect(arg);
-+            return 0;
-+        }
++    case CMD_SUSFS_ADD_SUS_KSTAT_REDIRECT: {
++        susfs_add_sus_kstat_redirect(arg);
++        return 0;
++    }
 +#endif
  #endif //#ifdef CONFIG_KSU_SUSFS_SUS_KSTAT
  #ifdef CONFIG_KSU_SUSFS_SPOOF_UNAME
-         if (cmd == CMD_SUSFS_SET_UNAME) {
+     case CMD_SUSFS_SET_UNAME: {
