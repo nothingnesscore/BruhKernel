@@ -1,0 +1,139 @@
+name: "KSU Upstream Monitor & Auto-Builder"
+
+on:
+  schedule:
+    - cron: '0 */6 * * *' # Check every 6 hours
+  workflow_dispatch:
+    inputs:
+      force_build:
+        description: "Force trigger builds even if no upstream commit changed"
+        type: boolean
+        default: false
+      variant:
+        description: "Target flavour to check/build"
+        type: choice
+        options:
+          - All
+          - SukiSU
+          - ReSukiSU
+          - KernelSU-Next
+          - WKSU
+        default: "All"
+
+permissions:
+  contents: write
+  actions: write
+
+jobs:
+  check-and-build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout BruhKernel
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Check KSU Upstreams & NoMount
+        id: check
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          FORCE_BUILD: ${{ inputs.force_build }}
+          TARGET_VARIANT: ${{ inputs.variant || 'All' }}
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+
+          VERSION_DIR="android14-6.1"
+          UPDATED_FLAVOURS=""
+
+          check_upstream() {
+            local name="$1"
+            local repo="$2"
+            local branch="$3"
+            local pin_file="$VERSION_DIR/$4"
+
+            echo "=== Checking $name ($repo @ $branch) ==="
+            local remote_sha
+            remote_sha=$(curl -s "https://api.github.com/repos/$repo/commits/$branch" | jq -r '.sha // empty')
+            if [ -z "$remote_sha" ] || [ "$remote_sha" = "null" ]; then
+              echo "::warning::Could not fetch latest SHA for $repo ($branch)"
+              return 0
+            fi
+
+            local current_pin=""
+            [ -f "$pin_file" ] && current_pin=$(cat "$pin_file" | tr -d '[:space:]')
+
+            echo "Current pin: $current_pin"
+            echo "Remote latest: $remote_sha"
+
+            if [ "$remote_sha" != "$current_pin" ] || [ "$FORCE_BUILD" = "true" ]; then
+              echo "✨ New commit detected for $name: ${remote_sha:0:7} (was: ${current_pin:0:7})"
+              echo "$remote_sha" > "$pin_file"
+              UPDATED_FLAVOURS="$UPDATED_FLAVOURS $name"
+            else
+              echo "✅ $name is up to date."
+            fi
+          }
+
+          if [ "$TARGET_VARIANT" = "All" ] || [ "$TARGET_VARIANT" = "SukiSU" ]; then
+            check_upstream "SukiSU" "SukiSU-Ultra/SukiSU-Ultra" "main" "sukisu-pin.txt"
+          fi
+          if [ "$TARGET_VARIANT" = "All" ] || [ "$TARGET_VARIANT" = "ReSukiSU" ]; then
+            check_upstream "ReSukiSU" "ReSukiSU/ReSukiSU" "main" "resukisu-pin.txt"
+          fi
+          if [ "$TARGET_VARIANT" = "All" ] || [ "$TARGET_VARIANT" = "KernelSU-Next" ]; then
+            check_upstream "KernelSU-Next" "KernelSU-Next/KernelSU-Next" "next" "kernelsu-next-pin.txt"
+          fi
+          if [ "$TARGET_VARIANT" = "All" ] || [ "$TARGET_VARIANT" = "WKSU" ]; then
+            check_upstream "WKSU" "WildKernels/Wild_KSU" "canary" "wksu-pin.txt"
+          fi
+
+          echo "=== Checking NoMount upstream (maxsteeel/nomount @ dev) ==="
+          NOMOUNT_SHA=$(curl -s "https://api.github.com/repos/maxsteeel/nomount/commits/dev" | jq -r '.sha // empty')
+          if [ -n "$NOMOUNT_SHA" ] && [ "$NOMOUNT_SHA" != "null" ]; then
+            echo "Remote NoMount SHA: $NOMOUNT_SHA"
+            mkdir -p /tmp/nomount_upstream
+            curl -sL "https://raw.githubusercontent.com/maxsteeel/nomount/dev/kernel/src/nomount.c" -o /tmp/nomount_upstream/nomount.c
+            curl -sL "https://raw.githubusercontent.com/maxsteeel/nomount/dev/kernel/src/nomount.h" -o /tmp/nomount_upstream/nomount.h
+            if [ -s /tmp/nomount_upstream/nomount.c ] && [ -s /tmp/nomount_upstream/nomount.h ]; then
+              if ! cmp -s /tmp/nomount_upstream/nomount.c "$VERSION_DIR/nomount_src/nomount.c" || ! cmp -s /tmp/nomount_upstream/nomount.h "$VERSION_DIR/nomount_src/nomount.h"; then
+                echo "✨ Upstream NoMount code changes detected. Syncing into $VERSION_DIR/nomount_src/..."
+                cp /tmp/nomount_upstream/nomount.c "$VERSION_DIR/nomount_src/nomount.c"
+                cp /tmp/nomount_upstream/nomount.h "$VERSION_DIR/nomount_src/nomount.h"
+                UPDATED_FLAVOURS="$UPDATED_FLAVOURS NoMount"
+              fi
+            fi
+          fi
+
+          UPDATED_FLAVOURS=$(echo "$UPDATED_FLAVOURS" | xargs)
+          echo "updated_flavours=$UPDATED_FLAVOURS" >> "$GITHUB_OUTPUT"
+
+          if [ -n "$UPDATED_FLAVOURS" ]; then
+            git add "$VERSION_DIR/"
+            git commit -m "chore(upstream): update KSU/NoMount pins ($UPDATED_FLAVOURS)" || true
+            git push origin main || true
+            echo "Pushed updated pins to main."
+          fi
+
+      - name: Trigger Automated Builds
+        if: steps.check.outputs.updated_flavours != ''
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          UPDATED_FLAVOURS: ${{ steps.check.outputs.updated_flavours }}
+        run: |
+          echo "Triggering automated builds for: $UPDATED_FLAVOURS"
+          for f in $UPDATED_FLAVOURS; do
+            TARGET_KSU="$f"
+            [ "$f" = "NoMount" ] && TARGET_KSU="All"
+            echo "Dispatching kernel build for $TARGET_KSU..."
+            gh workflow run kernel-custom.yml \
+              -f kernel_target="android14-6.1.138 (2025-06)" \
+              -f ksu_variant="$TARGET_KSU" \
+              -f add_susfs=true \
+              -f add_zeromount=true \
+              -f add_zram=true \
+              -f add_overlayfs_support=true
+            echo "Build dispatched successfully for $TARGET_KSU!"
+            [ "$TARGET_KSU" = "All" ] && break
+          done

@@ -40,11 +40,28 @@ static DECLARE_RWSEM(nomount_rwsem);
 static DEFINE_STATIC_KEY_FALSE(nomount_active_uids);
 DEFINE_STATIC_SRCU(nomount_srcu);
 
+/* * Helpers to dynamically calculate the memory address of the strings / structs */
+#define nm_get_vpath(rule) ((rule)->paths)
+#define nm_get_rpath(rule) ((rule)->paths + (rule)->v_len + 1)
+#define nm_get_child_name(rule) (nm_get_vpath(rule) + (rule)->v_len - (rule)->child_len)
+#define nm_get_child_rules(array) ((struct nomount_rule **)((array)->hashes + (array)->capacity))
+#define nm_dir_tag(dir_node) READ_ONCE((dir_node)->_tag_ptr)
+#define nm_dir_is_virtual(dir_node) (nm_dir_tag((dir_node)) & 1UL)
+#define nm_dir_set_owner(dir_node, owner) WRITE_ONCE((dir_node)->_tag_ptr, (unsigned long)(owner) | 1UL)
+#define nm_dir_owner(dir_node) ({ \
+    unsigned long _tag = nm_dir_tag(dir_node); \
+    (_tag & 1UL) ? (struct nomount_rule *)(_tag & ~1UL) : NULL; \
+})
+
 struct nm_iop {
     struct inode_operations fake_iop; /* MUST be exactly at offset 0 */
     const struct inode_operations *orig_iop;
     struct nomount_dir_node *dir_node;
     struct rcu_head rcu;
+
+    /* Dentry Operations Hijacking */
+    struct dentry_operations fake_dops;
+    const struct dentry_operations *orig_dops;
 };
 
 struct nm_fop {
@@ -82,9 +99,13 @@ struct nomount_dir_node {
     struct nomount_child_array __rcu *children;
     u64 bloom_mask;
     struct inode *v_inode;
-    unsigned long _tag_ptr;
-    struct nm_iop __rcu *iop;
-    struct nm_fop __rcu *fop;
+    union {
+        unsigned long _tag_ptr;
+        struct {
+            struct nm_iop __rcu *iop;
+            struct nm_fop __rcu *fop;
+        };
+    };
     seqcount_t seq;
 };
 
@@ -117,14 +138,6 @@ struct nm_rule_info {
     u16 flags;
 };
 
-/* * Helpers to dynamically calculate the memory address of the strings / structs */
-#define nm_get_vpath(rule) ((rule)->paths)
-#define nm_get_rpath(rule) ((rule)->paths + (rule)->v_len + 1)
-#define nm_get_child_name(rule) (nm_get_vpath(rule) + (rule)->v_len - (rule)->child_len)
-static __always_inline struct nomount_rule **nm_get_child_rules(struct nomount_child_array *array) {
-    return (struct nomount_rule **)(array->hashes + array->capacity);
-}
-
 /*** Operaction Vectors ***/
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(6, 16, 0)
 static const struct file_operations nm_file_fops_mmap_prepare;
@@ -137,7 +150,8 @@ static const struct inode_operations nm_dir_iops;
 /*** forward declarations ***/
 static struct dentry *nomount_hijacked_lookup(struct inode *dir, struct dentry *dentry, unsigned int flags);
 static int nomount_hijacked_iterate_dir(struct file *file, struct dir_context *ctx);
-static void nomount_hijack_dentry_ops(struct dentry *dentry);
+static void nomount_hijacked_destroy_inode(struct inode *inode);
+static void nomount_hijack_dentry_ops(struct inode *dir, struct dentry *dentry);
 static void nm_free_rule(struct nomount_rule *rule);
 
 /* =====================================================================
@@ -289,6 +303,10 @@ struct nm_del_hdr {
     #define FLAGS_VAL /* Nothing */
 #endif
 
+#ifndef DCACHE_DONTCACHE
+# define DCACHE_DONTCACHE 0
+#endif
+
 static inline void nm_sync_inode_times(struct inode *v_inode, struct inode *r_inode)
 {
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(6, 12, 0)
@@ -323,6 +341,38 @@ static inline int nm_call_iterate(struct file *file, struct dir_context *ctx, co
 static inline struct dentry *nm_hash_and_lookup(struct dentry *dir, struct qstr *n) {
     n->hash = full_name_hash(dir, n->name, n->len);
     return (unlikely(dir->d_flags & DCACHE_OP_HASH) && dir->d_op->d_hash(dir, n) < 0) ? NULL : d_lookup(dir, n);
+}
+
+static inline struct nm_iop *nm_get_nm_iop(const struct inode_operations *iop) {
+    if (likely(iop) && iop->lookup == nomount_hijacked_lookup)
+        return container_of(iop, struct nm_iop, fake_iop);
+    return NULL;
+}
+
+static inline struct nm_fop *nm_get_nm_fop(const struct file_operations *fop) {
+    if (unlikely(!fop)) return NULL;
+    if (fop->iterate_shared == nomount_hijacked_iterate_dir)
+        return container_of(fop, struct nm_fop, fake_fop);
+#if LINUX_VERSION_CODE < KERNEL_VERSION(6, 6, 0)
+    if (fop->iterate == nomount_hijacked_iterate_dir)
+        return container_of(fop, struct nm_fop, fake_fop);
+#endif
+    return NULL;
+}
+
+static inline struct nm_sop *nm_get_nm_sop(const struct super_operations *sop) {
+    if (likely(sop) && sop->destroy_inode == nomount_hijacked_destroy_inode)
+        return container_of(sop, struct nm_sop, fake_sop);
+    return NULL;
+}
+
+#define NM_DOP_INITIALIZING ((const struct dentry_operations *)1L)
+static inline const struct dentry_operations *nm_get_orig_dops(struct nm_iop *iop)
+{
+    const struct dentry_operations *dops;
+    if (!iop) return NULL;
+    dops = smp_load_acquire(&iop->orig_dops);
+    return (dops == NM_DOP_INITIALIZING) ? NULL : dops;
 }
 
 #endif /* _LINUX_NOMOUNT_H */
