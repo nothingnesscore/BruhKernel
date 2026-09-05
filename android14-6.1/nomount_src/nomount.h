@@ -6,6 +6,7 @@
 #include <linux/list.h>
 #include <linux/hashtable.h>
 #include <linux/rbtree.h>
+#include <linux/rcupdate.h>
 #include <linux/rwsem.h>
 #include <linux/srcu.h>
 #include <linux/atomic.h>
@@ -34,10 +35,9 @@
 #define nm_err(fmt, ...)  printk(KERN_ERR "NoMount: [ERROR] " fmt, ##__VA_ARGS__)
 
 static struct rb_root_cached nomount_rules_tree = RB_ROOT_CACHED;
+struct nm_uid_array __rcu *nomount_uids = NULL;
 static LIST_HEAD(nomount_sb_list);
-static DEFINE_IDR(nomount_uid_idr);
 static DECLARE_RWSEM(nomount_rwsem);
-static DEFINE_STATIC_KEY_FALSE(nomount_active_uids);
 DEFINE_STATIC_SRCU(nomount_srcu);
 
 /* * Helpers to dynamically calculate the memory address of the strings / structs */
@@ -137,6 +137,58 @@ struct nm_rule_info {
     unsigned long v_ino;
     u16 flags;
 };
+
+struct nm_uid_array {
+    struct rcu_head rcu;
+    int count;
+    uid_t uids[];
+};
+
+/* --- UIDs Array RCU Management --- */
+static inline int nm_uid_add(uid_t target)
+{
+    struct nm_uid_array *old, *new_arr;
+    int count = 0;
+    if ((old = rcu_dereference_protected(nomount_uids, lockdep_is_held(&nomount_rwsem)))) {
+        for (int i = 0; i < (count = old->count); i++) if (old->uids[i] == target) return -EEXIST;
+    }
+
+    if (!(new_arr = kmalloc(sizeof(*new_arr) + (count + 1) * sizeof(uid_t), GFP_KERNEL))) return -ENOMEM;
+    new_arr->count = count + 1;
+    if (old) memcpy(new_arr->uids, old->uids, count * sizeof(uid_t));
+    new_arr->uids[count] = target;
+    rcu_assign_pointer(nomount_uids, new_arr);
+    if (old) kfree_rcu(old, rcu);
+    return 0;
+}
+
+static inline int nm_uid_del(uid_t target)
+{
+    struct nm_uid_array *old, *new_arr = NULL;
+    int count, found = 0, j = 0;
+
+    if (!(old = rcu_dereference_protected(nomount_uids, lockdep_is_held(&nomount_rwsem)))) return -ENOENT;
+    for (int i = 0; i < (count = old->count); i++) if (old->uids[i] == target) { found = 1; break; } 
+    if (!found) return -ENOENT;
+
+    if (count > 1) {
+        if (!(new_arr = kmalloc(sizeof(*new_arr) + (count - 1) * sizeof(uid_t), GFP_KERNEL))) return -ENOMEM;
+        new_arr->count = count - 1;
+        for (int i = 0; i < count; i++) if (old->uids[i] != target) new_arr->uids[j++] = old->uids[i];
+    }
+    rcu_assign_pointer(nomount_uids, new_arr);
+    kfree_rcu(old, rcu);
+    return 0;
+}
+
+static inline void nm_uid_clear(void)
+{
+    struct nm_uid_array *old;
+    if ((old = rcu_dereference_protected(nomount_uids, lockdep_is_held(&nomount_rwsem)))) {
+        RCU_INIT_POINTER(nomount_uids, NULL);
+        kfree_rcu(old, rcu);
+    }
+}
 
 /*** Operaction Vectors ***/
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(6, 16, 0)
