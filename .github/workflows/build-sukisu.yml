@@ -221,12 +221,23 @@ jobs:
         PATCH="$GITHUB_WORKSPACE/$VERSION_DIR/SukiSU-Ultra/patches/70_ksu_safety-sukisu-${KERNEL_VER}.patch"
         [ -s "$PATCH" ] && patch -p1 --no-backup-if-mismatch < "$PATCH" || echo "No 70_ patch needed"
 
+    - name: Prepare KernelSU for Bazel Sandbox
+      working-directory: ${{ env.KERNEL_ROOT }}
+      run: |
         # Dereference symlink / sync patched KSU into common/drivers/kernelsu for Bazel sandbox
         if [ -L "$KERNEL_ROOT/common/drivers/kernelsu" ]; then
           KSU_TARGET=$(readlink -f "$KERNEL_ROOT/common/drivers/kernelsu")
           rm -f "$KERNEL_ROOT/common/drivers/kernelsu"
           cp -r "$KSU_TARGET" "$KERNEL_ROOT/common/drivers/kernelsu"
           echo "[+] Converted drivers/kernelsu symlink to physical directory for Bazel sandbox"
+        fi
+
+        # Ensure uapi headers are available to drivers/kernelsu
+        if [ -d "$KERNEL_ROOT/$KSU_DIR/uapi" ]; then
+          cp -r "$KERNEL_ROOT/$KSU_DIR/uapi" "$KERNEL_ROOT/common/drivers/kernelsu/uapi" 2>/dev/null || true
+          cp -r "$KERNEL_ROOT/$KSU_DIR/uapi" "$KERNEL_ROOT/$KSU_DIR/kernel/uapi" 2>/dev/null || true
+          cp -r "$KERNEL_ROOT/$KSU_DIR/uapi" "$KERNEL_ROOT/common/drivers/uapi" 2>/dev/null || true
+          echo "[+] Synced $KSU_DIR/uapi to common/drivers"
         fi
 
     - name: Integrate NoMount
