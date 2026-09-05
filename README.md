@@ -7,7 +7,7 @@
 [![Kernel: GKI 6.1](https://img.shields.io/badge/Kernel-GKI%206.1-orange.svg)](https://android.googlesource.com/kernel/common)
 [![Platform: Android](https://img.shields.io/badge/Platform-Android%2012--16-blue.svg)](https://source.android.com)
 [![VFS: NoMount](https://img.shields.io/badge/VFS-NoMount%20(Native)-red.svg)](https://github.com/maxsteeel/nomount)
-[![Root Hiding: SUSFS 2.3](https://img.shields.io/badge/Root%20Hiding-SUSFS%20v2.3.0-purple.svg)](https://gitlab.com/simonpunk/susfs4ksu)
+[![Root Hiding: SUSFS](https://img.shields.io/badge/Root%20Hiding-SUSFS%20(v1.5.0--v2.3.0%2B)-purple.svg)](https://gitlab.com/simonpunk/susfs4ksu)
 
 ---
 
@@ -15,7 +15,7 @@
 
 **BruhKernel** is an automated GKI (Generic Kernel Image) build pipeline designed for modern Android 12 – 16 devices running common GKI kernels (with profiles for Android 14 Kernel 6.1).
 
-It combines modern kernel root solutions with native **in-kernel VFS path redirection (NoMount)** and **SUSFS v2.3.0 root isolation**, providing an ultra-clean environment where module modifications are transparent and leave zero mount table artifacts.
+It combines modern kernel root solutions with native **in-kernel VFS path redirection (NoMount)** and **SUSFS (v1.5.0 – v2.3.0+) root isolation**, providing an ultra-clean environment where module modifications are transparent and leave zero mount table artifacts.
 
 ---
 
@@ -33,12 +33,12 @@ Earlier iterations of custom GKI builders incorporated **ZeroMount** (`60_zeromo
 ## 🌟 Key Features & Capabilities
 
 ### 1. Multi-Variant KernelSU Support
-* **SukiSU-Ultra:** Recommended variant combining KernelSU root with SUSFS v2.3.0 and Kernel Patch Module (KPM) support.
+* **SukiSU-Ultra:** Recommended variant combining KernelSU root with SUSFS and Kernel Patch Module (KPM) support.
 * **ReSukiSU:** Minimalist, performance-tuned SukiSU build.
 * **KernelSU-Next (KSUN):** The upstream KernelSU fork by rifsxd and pershoot.
 * **WildKSU (WKSU):** Performance-oriented KernelSU variant.
 
-### 2. Upstream SUSFS v2.3.0
+### 2. Kernel SUSFS Integration (v1.5.0 – v2.3.0+)
 * Advanced kernel-level isolation: `sus_path`, `sus_mount`, `sus_kstat`, `sus_map`, and `open_redirect`.
 * Automated sdcard monitoring worker (`susfs_start_sdcard_monitor_fn`).
 * AVC denial log spoofing to maintain clean audit logs.
