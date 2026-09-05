@@ -1,0 +1,2 @@
+ok: unsafe memmove() usage correctly detected with '__read_overflow2' in /home/runner/work/BruhKernel/BruhKernel/android14-6.1-138/common/lib/test_fortify/read_overflow2-memmove.c
+lib/test_fortify/read_overflow2-memmove.log.o:                  U __read_overflow2

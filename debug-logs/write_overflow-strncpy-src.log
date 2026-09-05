@@ -1,0 +1,2 @@
+ok: unsafe strncpy() usage correctly detected with '__write_overflow' in /home/runner/work/BruhKernel/BruhKernel/android14-6.1-138/common/lib/test_fortify/write_overflow-strncpy-src.c
+lib/test_fortify/write_overflow-strncpy-src.log.o:                  U __write_overflow
