@@ -171,6 +171,7 @@ else
     echo "fix-susfs-compat: setuid_hook.c not found — skipping"
 fi
 
+echo "fix-susfs-compat: done"
 
 # ---------------------------------------------------------------------------
 # Fix 7: core/init.c - susfs.h include order
@@ -246,37 +247,6 @@ if [ -f "$SUSFS_DEF" ]; then
 fi
 
 # ---------------------------------------------------------------------------
-# Fix 9: Ensure CONFIG_KSU_SUSFS_SUS_KSTAT_REDIRECT & UNICODE_FILTER in fs/Kconfig
-# ---------------------------------------------------------------------------
-FS_KCONFIG="$KERNEL_DIR/fs/Kconfig"
-if [ -f "$FS_KCONFIG" ]; then
-    if ! grep -q "config KSU_SUSFS_SUS_KSTAT_REDIRECT" "$FS_KCONFIG"; then
-        echo "fix-susfs-compat: injecting KSU_SUSFS_SUS_KSTAT_REDIRECT into fs/Kconfig"
-        cat >> "$FS_KCONFIG" << 'EOF_KCONFIG'
-
-config KSU_SUSFS_SUS_KSTAT_REDIRECT
-	bool "SUSFS kstat redirect"
-	depends on KSU_SUSFS_SUS_KSTAT
-	default y
-	help
-	  Redirects kstat lookups to real file metadata for spoofed paths.
-EOF_KCONFIG
-    fi
-    if ! grep -q "config KSU_SUSFS_UNICODE_FILTER" "$FS_KCONFIG"; then
-        echo "fix-susfs-compat: injecting KSU_SUSFS_UNICODE_FILTER into fs/Kconfig"
-        cat >> "$FS_KCONFIG" << 'EOF_KCONFIG'
-
-config KSU_SUSFS_UNICODE_FILTER
-	bool "Unicode Filter (blocks scoped storage bypass)"
-	depends on KSU_SUSFS
-	default y
-	help
-	  Blocks filesystem path attacks using unicode characters.
-EOF_KCONFIG
-    fi
-fi
-
-# ---------------------------------------------------------------------------
 # Fix 10: Multi-Variant KSU/SUSFS Linker Compatibility Stubs
 # When building KernelSU-Next or WildKSU, SukiSU-specific SUSFS hooks in
 # 50_ patch (input hook, init_rc hook, reboot hook, selinux hide, stat hooks)
@@ -317,9 +287,6 @@ char fake_state[4096] __attribute__((weak, aligned(64))) = {0};
 bool ksu_selinux_hide_running __attribute__((weak)) = false;
 bool ksu_selinux_hide_enabled __attribute__((weak)) = false;
 __attribute__((weak)) void initialize_fake_status(void) {}
-
-struct cred *ksu_cred __attribute__((weak)) = NULL;
-__attribute__((weak)) void setup_selinux(const char *domain, struct cred *cred) {}
 EOF_STUBS
 
     FS_MAKEFILE="$KERNEL_DIR/fs/Makefile"
@@ -329,7 +296,4 @@ EOF_STUBS
     fi
 fi
 
-echo "fix-susfs-compat: done"
-
 exit 0
-

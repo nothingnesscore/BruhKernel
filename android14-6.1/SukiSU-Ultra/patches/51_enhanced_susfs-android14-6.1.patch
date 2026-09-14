@@ -1,40 +1,8 @@
-diff --git a/fs/Kconfig b/fs/Kconfig
-index 8e9c0b5..d194c41 100644
---- a/fs/Kconfig
-+++ b/fs/Kconfig
-@@ -386,2 +386,16 @@
- config IO_WQ
- 	bool
-+
-+config KSU_SUSFS_SUS_KSTAT_REDIRECT
-+	bool "SUSFS kstat redirect"
-+	depends on KSU_SUSFS_SUS_KSTAT
-+	default y
-+	help
-+	  Redirects kstat lookups to real file metadata for spoofed paths.
-+
-+config KSU_SUSFS_UNICODE_FILTER
-+	bool "Unicode Filter (blocks scoped storage bypass)"
-+	depends on KSU_SUSFS
-+	default y
-+	help
-+	  Blocks filesystem path attacks using unicode characters.
 diff --git a/fs/namei.c b/fs/namei.c
 index 8da98d9..c223f76 100644
 --- a/fs/namei.c
 +++ b/fs/namei.c
-@@ -46,6 +46,10 @@
- #include "internal.h"
- #include "mount.h"
- 
-+#ifdef CONFIG_KSU_SUSFS_UNICODE_FILTER
-+extern bool susfs_check_unicode_bypass(const char *pathname);
-+#endif
-+
- #ifdef CONFIG_KSU_SUSFS_SUS_PATH
- extern bool susfs_is_inode_sus_path(struct inode *inode);
- extern const struct qstr susfs_fake_qstr_name;
-@@ -2605,6 +2609,10 @@ int filename_lookup(int dfd, struct filename *name, unsigned flags,
+@@ -2605,6 +2605,10 @@ int filename_lookup(int dfd, struct filename *name, unsigned flags,
  	struct nameidata nd;
  	if (IS_ERR(name))
  		return PTR_ERR(name);
@@ -49,18 +17,7 @@ diff --git a/fs/stat.c b/fs/stat.c
 index 7716ce9..81e4989 100644
 --- a/fs/stat.c
 +++ b/fs/stat.c
-@@ -28,6 +28,10 @@
- #include "internal.h"
- #include "mount.h"
- 
-+#ifdef CONFIG_KSU_SUSFS_SUS_KSTAT_REDIRECT
-+extern bool susfs_is_sus_kstat_redirect(struct dentry *dentry, struct kstat *stat);
-+#endif
-+
- #ifdef CONFIG_KSU_SUSFS_SUS_KSTAT
- extern void susfs_sus_kstat_spoof_generic_fillattr(struct inode *inode, struct kstat *stat);
- #endif
-@@ -284,6 +288,11 @@ retry:
+@@ -284,6 +284,11 @@ retry:
  		goto out;
  
  	error = vfs_getattr(&path, stat, request_mask, flags);
@@ -76,24 +33,7 @@ diff --git a/fs/susfs.c b/fs/susfs.c
 index d88b00e..ae24af2 100644
 --- a/fs/susfs.c
 +++ b/fs/susfs.c
-@@ -1238,6 +1238,16 @@ void susfs_get_enabled_features(void __user **user_info) {
- 	if (info->err) goto out_copy_to_user;
- 	buf_ptr = info->enabled_features + copied_size;
- #endif
-+#ifdef CONFIG_KSU_SUSFS_SUS_KSTAT_REDIRECT
-+	info->err = copy_config_to_buf("CONFIG_KSU_SUSFS_SUS_KSTAT_REDIRECT\n", buf_ptr, &copied_size, SUSFS_ENABLED_FEATURES_SIZE);
-+	if (info->err) goto out_copy_to_user;
-+	buf_ptr = info->enabled_features + copied_size;
-+#endif
-+#ifdef CONFIG_KSU_SUSFS_UNICODE_FILTER
-+	info->err = copy_config_to_buf("CONFIG_KSU_SUSFS_UNICODE_FILTER\n", buf_ptr, &copied_size, SUSFS_ENABLED_FEATURES_SIZE);
-+	if (info->err) goto out_copy_to_user;
-+	buf_ptr = info->enabled_features + copied_size;
-+#endif
- 
- 	info->err = 0;
- out_copy_to_user:
-@@ -1477,3 +1487,134 @@ void susfs_init(void) {\
+@@ -1466,3 +1466,130 @@ void susfs_init(void) {\
  /* No module exit is needed becuase it should never be a loadable kernel module */
  //void __init susfs_exit(void)
  
@@ -157,31 +97,26 @@ index d88b00e..ae24af2 100644
 +static DEFINE_HASHTABLE(sus_kstat_redirect_hashtable, 10);
 +static DEFINE_SPINLOCK(susfs_kstat_redirect_lock);
 +
-+void susfs_add_sus_kstat_redirect(void __user **user_info)
++int susfs_add_sus_kstat_redirect(void __user *user_arg)
 +{
 +	struct st_susfs_sus_kstat_redirect entry;
 +	struct susfs_sus_kstat_redirect_hl_node *node;
 +	struct path path;
 +	int err = 0;
 +
-+	if (copy_from_user(&entry, *user_info, sizeof(entry)))
-+		return;
-+
-+	entry.real_pathname[sizeof(entry.real_pathname) - 1] = '\0';
-+	entry.virtual_pathname[sizeof(entry.virtual_pathname) - 1] = '\0';
++	if (copy_from_user(&entry, user_arg, sizeof(entry)))
++		return -EFAULT;
 +
 +	err = kern_path(entry.real_pathname, LOOKUP_FOLLOW, &path);
 +	if (err) {
 +		pr_err("susfs: failed to resolve real path: %s, err: %d\n", entry.real_pathname, err);
-+		entry.err = err;
-+		goto out_copy;
++		return err;
 +	}
 +
 +	node = kmalloc(sizeof(*node), GFP_KERNEL);
 +	if (!node) {
 +		path_put(&path);
-+		entry.err = -ENOMEM;
-+		goto out_copy;
++		return -ENOMEM;
 +	}
 +
 +	strncpy(node->virtual_pathname, entry.virtual_pathname, SUSFS_MAX_LEN_PATHNAME - 1);
@@ -194,12 +129,7 @@ index d88b00e..ae24af2 100644
 +	spin_unlock(&susfs_kstat_redirect_lock);
 +
 +	path_put(&path);
-+	entry.err = 0;
-+
-+out_copy:
-+	if (copy_to_user(*user_info, &entry, sizeof(entry))) {
-+		pr_info("susfs: failed copying redirect info back to user\n");
-+	}
++	return 0;
 +}
 +
 +bool susfs_is_sus_kstat_redirect(struct dentry *dentry, struct kstat *stat)
@@ -260,25 +190,22 @@ index 2819a07..afd016f 100644
 +	int                                     err;
 +};
 +
- #define SUSFS_VERSION "v2.3.0"
+ #define SUSFS_VERSION "v2.2.0"
  #if LINUX_VERSION_CODE < KERNEL_VERSION(5,0,0)
  #define SUSFS_VARIANT "NON-GKI"
-@@ -238,4 +262,15 @@ void susfs_start_sdcard_monitor_fn(void);
+@@ -238,4 +256,11 @@ void susfs_start_sdcard_monitor_fn(void);
  /* susfs_init */
  void susfs_init(void);
  
 +#ifdef CONFIG_KSU_SUSFS_SUS_KSTAT_REDIRECT
-+void susfs_add_sus_kstat_redirect(void __user **user_info);
++int susfs_add_sus_kstat_redirect(void __user *user_arg);
 +bool susfs_is_sus_kstat_redirect(struct dentry *dentry, struct kstat *stat);
-+#else
-+static inline bool susfs_is_sus_kstat_redirect(struct dentry *dentry, struct kstat *stat) { return false; }
 +#endif
 +#ifdef CONFIG_KSU_SUSFS_UNICODE_FILTER
 +bool susfs_check_unicode_bypass(const char *pathname);
-+#else
-+static inline bool susfs_check_unicode_bypass(const char *pathname) { return false; }
 +#endif
  #endif
+\ No newline at end of file
 diff --git a/include/linux/susfs_def.h b/include/linux/susfs_def.h
 index 1fc33b4..0f021ed 100644
 --- a/include/linux/susfs_def.h
