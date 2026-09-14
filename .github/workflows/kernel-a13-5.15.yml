@@ -52,9 +52,7 @@ on:
         options:
           - peridot
           - generic
-          - lake
-          - lake_a15
-        default: "peridot"
+        default: "generic"
   workflow_call:
     inputs:
       ksu_variant:
@@ -83,7 +81,7 @@ on:
         default: ""
       device_codename:
         type: string
-        default: "lake"
+        default: "generic"
 
 jobs:
   download-dependencies:

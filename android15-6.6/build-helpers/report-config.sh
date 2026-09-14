@@ -7,16 +7,54 @@ ANDROID_VER="$2"
 KERNEL_VER="$3"
 
 DOT_CONFIG=""
-for candidate in \
-  "$KERNEL_ROOT/out/${ANDROID_VER}-${KERNEL_VER}/common/.config" \
-  "$KERNEL_ROOT/out/${ANDROID_VER}-${KERNEL_VER}/.config" \
-  "$KERNEL_ROOT/bazel-bin/common/kernel_aarch64/.config" \
-  "$KERNEL_ROOT/common/.config"; do
-  [ -f "$candidate" ] && DOT_CONFIG="$candidate" && break
+
+# 1. Primary candidate paths (Bazel/Kleaf, standard out layouts, and glob expansions)
+candidates=(
+  "$KERNEL_ROOT/bazel-bin/common/kernel_aarch64/.config"
+  "$KERNEL_ROOT/out/${ANDROID_VER}-${KERNEL_VER}/common/.config"
+  "$KERNEL_ROOT/out/${ANDROID_VER}-${KERNEL_VER}/.config"
+)
+
+shopt -s nullglob
+candidates+=(
+  "$KERNEL_ROOT"/out/android*/common/.config
+  "$KERNEL_ROOT"/out/android*/.config
+  "$KERNEL_ROOT"/bazel-bin/**/.config
+  "$KERNEL_ROOT"/bazel-out/**/common/kernel_aarch64/.config
+  "$KERNEL_ROOT"/common/.config
+)
+shopt -u nullglob
+
+# Check candidate paths; prioritize .config files containing CONFIG_KSU
+for candidate in "${candidates[@]}"; do
+  if [ -f "$candidate" ] && grep -q "CONFIG_KSU" "$candidate" 2>/dev/null; then
+    DOT_CONFIG="$candidate"
+    break
+  fi
 done
 
+# 2. Fallback: recursively search with find -L "$KERNEL_ROOT" -name ".config" -type f validating CONFIG_KSU
 if [ -z "$DOT_CONFIG" ]; then
-  DOT_CONFIG=$(find "$KERNEL_ROOT" -name ".config" -path "*/common/*" -type f 2>/dev/null | head -1)
+  while IFS= read -r candidate; do
+    if [ -f "$candidate" ] && grep -q "CONFIG_KSU" "$candidate" 2>/dev/null; then
+      DOT_CONFIG="$candidate"
+      break
+    fi
+  done < <(find -L "$KERNEL_ROOT" -name ".config" -type f 2>/dev/null)
+fi
+
+# 3. Ultimate fallback: if CONFIG_KSU wasn't matched, check candidates without filter
+if [ -z "$DOT_CONFIG" ]; then
+  for candidate in "${candidates[@]}"; do
+    if [ -f "$candidate" ]; then
+      DOT_CONFIG="$candidate"
+      break
+    fi
+  done
+fi
+
+if [ -z "$DOT_CONFIG" ]; then
+  DOT_CONFIG=$(find -L "$KERNEL_ROOT" -name ".config" -type f 2>/dev/null | head -1)
 fi
 
 if [ -z "$DOT_CONFIG" ]; then
@@ -53,8 +91,14 @@ fi
     CONFIG_NOMOUNT \
     CONFIG_KPM; do
 
-    val=$(grep "^${symbol}=" "$DOT_CONFIG" 2>/dev/null | head -1 | cut -d= -f2)
-    not_set=$(grep "# ${symbol} is not set" "$DOT_CONFIG" 2>/dev/null)
+    # Dual-check CONFIG_NOMOUNT and CONFIG_ZEROMOUNT to prevent false '—' on patch-based trees
+    if [ "$symbol" = "CONFIG_NOMOUNT" ]; then
+      val=$(grep -E "^(CONFIG_NOMOUNT|CONFIG_ZEROMOUNT)=" "$DOT_CONFIG" 2>/dev/null | head -1 | cut -d= -f2)
+      not_set=$(grep -E "# (CONFIG_NOMOUNT|CONFIG_ZEROMOUNT) is not set" "$DOT_CONFIG" 2>/dev/null | head -1)
+    else
+      val=$(grep "^${symbol}=" "$DOT_CONFIG" 2>/dev/null | head -1 | cut -d= -f2)
+      not_set=$(grep "# ${symbol} is not set" "$DOT_CONFIG" 2>/dev/null)
+    fi
 
     if [ -n "$val" ]; then
       echo "| \`${symbol}\` | \`${val}\` |"

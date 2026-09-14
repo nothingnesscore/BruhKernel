@@ -1,2 +1,3 @@
 *.img
 extracted_kernel_config.txt
+.agents/

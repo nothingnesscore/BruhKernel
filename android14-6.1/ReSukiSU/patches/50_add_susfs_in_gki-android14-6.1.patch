@@ -306,7 +306,7 @@ index 8e9c0b567..d194c4168 100644
  
  	return walk_component(nd, WALK_TRAILING);
  }
-@@ -3403,15 +3505,40 @@ static struct dentry *lookup_open(struct nameidata *nd, struct file *file,
+@@ -3403,15 +3505,42 @@ static struct dentry *lookup_open(struct nameidata *nd, struct file *file,
  	int error, create_error = 0;
  	umode_t mode = op->mode;
  	DECLARE_WAIT_QUEUE_HEAD_ONSTACK(wq);
@@ -328,6 +328,8 @@ index 8e9c0b567..d194c4168 100644
 +			d_lookup_done(dentry);
 +		}
 +		dput(dentry);
++		if (op->open_flag & (O_CREAT | O_TRUNC | O_EXCL))
++			return ERR_PTR(-ENOENT);
 +		dentry = NULL;
 +		found_sus_path = true;
 +	}
@@ -2520,7 +2522,7 @@ new file mode 100644
 index 0000000..737a217
 --- /dev/null
 +++ b/fs/susfs.c
-@@ -0,0 +1,1468 @@
+@@ -0,0 +1,1478 @@
 +#include <linux/version.h>
 +#include <linux/cred.h>
 +#include <linux/fs.h>
@@ -3306,6 +3308,9 @@ index 0000000..737a217
 +		goto out_copy_to_user;
 +	}
 +
++	info.target_pathname[sizeof(info.target_pathname) - 1] = '\0';
++	info.redirected_pathname[sizeof(info.redirected_pathname) - 1] = '\0';
++
 +        if (*info.target_pathname == '\0') {
 +                info.err = -EINVAL;
 +		SUSFS_LOGE("empty target_pathname\n");
@@ -3341,6 +3346,13 @@ index 0000000..737a217
 +	if (!target_inode || !target_inode->i_mapping) {
 +		SUSFS_LOGE("target_inode || target_inode->i_mapping is NULL\n");
 +		info.err = -ENOENT;
++		goto out_path_put_target_path;
++	}
++
++	if (target_inode->i_ino == redirected_inode->i_ino &&
++	    target_inode->i_sb->s_dev == redirected_inode->i_sb->s_dev) {
++		SUSFS_LOGE("target and redirected files are the same inode\n");
++		info.err = -EINVAL;
 +		goto out_path_put_target_path;
 +	}
 +

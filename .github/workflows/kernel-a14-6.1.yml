@@ -52,8 +52,6 @@ on:
         options:
           - peridot
           - generic
-          - lake
-          - lake_a15
         default: "peridot"
   workflow_call:
     inputs:
