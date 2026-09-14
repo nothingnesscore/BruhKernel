@@ -50,7 +50,7 @@ fi
     CONFIG_KSU_SUSFS_UID_GATED_HIDING \
     CONFIG_KSU_SUSFS_HIDDEN_NAME \
     CONFIG_KSU_SUSFS_HARDENED \
-    CONFIG_ZEROMOUNT \
+    CONFIG_NOMOUNT \
     CONFIG_KPM; do
 
     val=$(grep "^${symbol}=" "$DOT_CONFIG" 2>/dev/null | head -1 | cut -d= -f2)

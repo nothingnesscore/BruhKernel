@@ -97,7 +97,7 @@ jobs:
 
   build:
     needs: [download-dependencies]
-    name: "BBK KernelSU-Next â€” ${{ inputs.device }}"
+    name: "BBK KernelSU-Next — ${{ inputs.device }}"
     runs-on: ubuntu-latest
     timeout-minutes: 120
     env:
@@ -382,7 +382,7 @@ jobs:
         if [ -f "$HMBIRD_SCRIPT" ]; then
           bash "$HMBIRD_SCRIPT" "$SYNC_DIR/kernel_platform" || true
         else
-          echo "::warning::HMBird enabled but hmbird-setup.sh not found â€” skipping"
+          echo "::warning::HMBird enabled but hmbird-setup.sh not found — skipping"
         fi
 
     - name: Setup Baseband Guard
@@ -609,7 +609,7 @@ jobs:
         [[ "${LTO_OVERRIDE:-}" == "none" ]] && LTO_MODE=none
         S() { [[ "$1" == "true" ]] && echo "Enabled" || echo "Disabled"; }
         {
-          echo "## KernelSU-Next | ${DEVICE_NAME} â€” ${KERNEL_VER}.${SUBLEVEL}"
+          echo "## KernelSU-Next | ${DEVICE_NAME} — ${KERNEL_VER}.${SUBLEVEL}"
           echo ""
           echo "| Feature | Status |"
           echo "|---------|--------|"

@@ -97,7 +97,7 @@ jobs:
 
   build:
     needs: [download-dependencies]
-    name: "BBK WKSU â€” ${{ inputs.device }}"
+    name: "BBK WKSU — ${{ inputs.device }}"
     runs-on: ubuntu-latest
     timeout-minutes: 120
     env:
@@ -382,7 +382,7 @@ jobs:
         if [ -f "$HMBIRD_SCRIPT" ]; then
           bash "$HMBIRD_SCRIPT" "$SYNC_DIR/kernel_platform" || true
         else
-          echo "::warning::HMBird enabled but hmbird-setup.sh not found â€” skipping"
+          echo "::warning::HMBird enabled but hmbird-setup.sh not found — skipping"
         fi
 
     - name: Setup Baseband Guard
@@ -417,7 +417,7 @@ jobs:
           bash "$HELPERS/assemble-defconfig.sh" "$FRAGMENT" "$DEFCONFIG_FRAGMENT" "$DEFCONFIG" $ASSEMBLE_FLAGS
         fi
 
-        # Wild_KSU Kconfig defaults KSU_SUSFS=y â€” explicitly disable when not requested
+        # Wild_KSU Kconfig defaults KSU_SUSFS=y — explicitly disable when not requested
         [[ "$ADD_SUSFS" != "true" ]] && echo "# CONFIG_KSU_SUSFS is not set" >> "$DEFCONFIG"
 
     - name: Build Kernel
@@ -609,7 +609,7 @@ jobs:
         [[ "${LTO_OVERRIDE:-}" == "none" ]] && LTO_MODE=none
         S() { [[ "$1" == "true" ]] && echo "Enabled" || echo "Disabled"; }
         {
-          echo "## WKSU | ${DEVICE_NAME} â€” ${KERNEL_VER}.${SUBLEVEL}"
+          echo "## WKSU | ${DEVICE_NAME} — ${KERNEL_VER}.${SUBLEVEL}"
           echo ""
           echo "| Feature | Status |"
           echo "|---------|--------|"

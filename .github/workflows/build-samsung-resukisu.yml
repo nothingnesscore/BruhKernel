@@ -100,7 +100,7 @@ jobs:
 
   build:
     needs: [download-dependencies]
-    name: "Samsung ReSukiSU â€” ${{ inputs.device }}"
+    name: "Samsung ReSukiSU — ${{ inputs.device }}"
     runs-on: ubuntu-latest
     timeout-minutes: 120
     env:
@@ -597,7 +597,7 @@ jobs:
       run: |
         S() { [[ "$1" == "true" ]] && echo "Enabled" || echo "Disabled"; }
         {
-          echo "## ReSukiSU | ${DEVICE_NAME} â€” ${KERNEL_VER}.${SUBLEVEL}"
+          echo "## ReSukiSU | ${DEVICE_NAME} — ${KERNEL_VER}.${SUBLEVEL}"
           echo ""
           echo "| Feature | Status |"
           echo "|---------|--------|"

@@ -100,7 +100,7 @@ jobs:
 
   build:
     needs: [download-dependencies]
-    name: "Samsung KernelSU-Next â€” ${{ inputs.device }}"
+    name: "Samsung KernelSU-Next — ${{ inputs.device }}"
     runs-on: ubuntu-latest
     timeout-minutes: 120
     env:
@@ -585,7 +585,7 @@ jobs:
       run: |
         S() { [[ "$1" == "true" ]] && echo "Enabled" || echo "Disabled"; }
         {
-          echo "## KernelSU-Next | ${DEVICE_NAME} â€” ${KERNEL_VER}.${SUBLEVEL}"
+          echo "## KernelSU-Next | ${DEVICE_NAME} — ${KERNEL_VER}.${SUBLEVEL}"
           echo ""
           echo "| Feature | Status |"
           echo "|---------|--------|"

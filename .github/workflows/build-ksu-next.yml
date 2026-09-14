@@ -410,7 +410,7 @@ jobs:
         STOCK_BUILD_HOST=$(jq -r ".devices.${DEVICE_CODENAME}.stock_kernel.build_host" "$PROFILE_FILE")
         STOCK_COMPILER=$(jq -r ".devices.${DEVICE_CODENAME}.stock_kernel.compiler_info // empty" "$PROFILE_FILE")
 
-        # 5.10â€“6.1: Makefile prepends KERNELVERSION, setlocalversion outputs suffix only
+        # 5.10–6.1: Makefile prepends KERNELVERSION, setlocalversion outputs suffix only
         # 6.6+: Makefile delegates entirely to setlocalversion, must output full version
         MAJOR=${KERNEL_VER%%.*}
         MINOR=${KERNEL_VER#*.}
@@ -453,7 +453,7 @@ jobs:
         if [ -f "build/build.sh" ]; then
           KMI_SYMBOL_LIST_STRICT_MODE=0 HOSTLD=/usr/bin/ld.lld GKI_DEFCONFIG_FRAGMENT="$DEFCONFIG_FRAGMENT" LTO=$LTO_MODE BUILD_CONFIG=common/build.config.gki.aarch64 build/build.sh || BUILD_RC=$?
         else
-          # Prebuilt clang sysroot lacks glibc 2.39 C23 symbols â€” link against system libc
+          # Prebuilt clang sysroot lacks glibc 2.39 C23 symbols — link against system libc
           if [ -f common/tools/bpf/resolve_btfids/Makefile ]; then
             echo 'override KBUILD_HOSTLDFLAGS += --sysroot=/' >> common/tools/bpf/resolve_btfids/Makefile
             echo 'override LDFLAGS += --sysroot=/' >> common/tools/bpf/resolve_btfids/Makefile
