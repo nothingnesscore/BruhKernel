@@ -33,10 +33,10 @@
 
 static void *nomount_art_root = NULL;
 static struct nm_uid_array __rcu *nomount_uids = NULL;
+static struct srcu_struct nomount_srcu;
 static LIST_HEAD(nomount_rules_list);
 static LIST_HEAD(nomount_sb_list);
 static DECLARE_RWSEM(nomount_rwsem);
-DEFINE_STATIC_SRCU(nomount_srcu);
 
 /* * Helpers to dynamically calculate the memory address of the strings / structs */
 #define nm_get_vpath(rule) ((rule)->paths)

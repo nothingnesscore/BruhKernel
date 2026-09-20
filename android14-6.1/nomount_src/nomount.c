@@ -735,7 +735,7 @@ static int nm_d_revalidate(struct dentry *dentry, unsigned int flags)
     struct nm_rule_info rule_info;
     struct inode *inode;
     struct nm_iop *iop = NULL;
-    bool injected, has_rule = false;
+    bool injected, has_rule = false, is_blocked;
 
 #if LINUX_VERSION_CODE < KERNEL_VERSION(6, 13, 0)
     struct inode *parent_inode = d_inode(READ_ONCE(dentry->d_parent));
@@ -752,14 +752,15 @@ static int nm_d_revalidate(struct dentry *dentry, unsigned int flags)
 
     inode = READ_ONCE(dentry->d_inode);
     injected = inode && (inode->i_op == &nm_file_iops || inode->i_op == &nm_dir_iops);
+    is_blocked = nomount_is_uid_blocked(current_fsuid().val);
 
     if (parent_dir) {
         u32 hash = full_name_hash((const void *)(unsigned long)NOMOUNT_MAGIC_SIG, name->name, name->len);
         has_rule = nomount_get_rule_info(parent_dir, name->name, name->len, hash, &rule_info, false);
     }
 
-    if (nomount_is_uid_blocked(current_fsuid().val)) {
-        if (injected) goto drop_it;
+    if (is_blocked) {
+        if (injected || (!inode && has_rule)) goto drop_it;
         goto orig_dops;
     }
 
@@ -769,8 +770,7 @@ static int nm_d_revalidate(struct dentry *dentry, unsigned int flags)
         goto drop_it;
     }
 
-    if (injected || (!inode && has_rule))
-        goto drop_it;
+    if (injected) goto drop_it;
 
 orig_dops:
     if ((orig_dops = nm_get_orig_dops(iop)) && orig_dops->d_revalidate) {
@@ -941,31 +941,33 @@ static void nomount_hijack_dentry_ops(struct inode *dir, struct dentry *dentry, 
 
     if (!dentry || !dir) return;
     iop = nm_get_nm_iop(smp_load_acquire(&dir->i_op));
-    if ((orig = READ_ONCE(dentry->d_op)) == &nm_dops || (iop && orig == &iop->fake_dops)) return;
 
     spin_lock(&dentry->d_lock);
-    if ((orig = dentry->d_op) == &nm_dops || (iop && orig == &iop->fake_dops)) { spin_unlock(&dentry->d_lock); return; }
-    if (orig && iop) {
-        if (unlikely((current_orig = smp_load_acquire(&iop->orig_dops)) != orig)) {
-            if (current_orig == NULL) {
-                if (cmpxchg(&iop->orig_dops, NULL, NM_DOP_INITIALIZING) == NULL) {
-                    iop->fake_dops = *orig;
-                    iop->fake_dops.d_revalidate = nm_d_revalidate;
-                    smp_store_release(&iop->orig_dops, orig);
-                } else {
+    orig = dentry->d_op;
+    if (orig != &nm_dops && !(iop && orig == &iop->fake_dops)) {
+        if (orig && iop) {
+            if (unlikely((current_orig = smp_load_acquire(&iop->orig_dops)) != orig)) {
+                if (current_orig == NULL) {
+                    if (cmpxchg(&iop->orig_dops, NULL, NM_DOP_INITIALIZING) == NULL) {
+                        iop->fake_dops = *orig;
+                        iop->fake_dops.d_revalidate = nm_d_revalidate;
+                        smp_store_release(&iop->orig_dops, orig);
+                    } else {
+                        while (smp_load_acquire(&iop->orig_dops) == NM_DOP_INITIALIZING) cpu_relax();
+                    }
+                } else if (current_orig == NM_DOP_INITIALIZING) {
                     while (smp_load_acquire(&iop->orig_dops) == NM_DOP_INITIALIZING) cpu_relax();
                 }
-            } else if (current_orig == NM_DOP_INITIALIZING) {
-                while (smp_load_acquire(&iop->orig_dops) == NM_DOP_INITIALIZING) cpu_relax();
             }
+            dentry->d_op = &iop->fake_dops;
+        } else {
+            dentry->d_op = &nm_dops;
         }
-        dentry->d_op = &iop->fake_dops;
-    } else {
-        dentry->d_op = &nm_dops;
     }
 
+    dentry->d_flags |= DCACHE_OP_REVALIDATE;
     if (injected)
-        dentry->d_flags |= (DCACHE_OP_REVALIDATE | DCACHE_DONTCACHE);
+        dentry->d_flags |= DCACHE_DONTCACHE;
 
     spin_unlock(&dentry->d_lock);
 }
@@ -1193,6 +1195,7 @@ static int nomount_generate_virtual_topology(struct nomount_rule *target_rule)
             } else {
                 nomount_hijack_dir_ops(dir_node, v_inode);
                 nomount_hijack_superblock(p_path.dentry->d_sb);
+                shrink_dcache_parent(p_path.dentry);
                 struct dentry *dentry = nm_hash_and_lookup(p_path.dentry, &(struct qstr)QSTR_INIT(child_name, child_len));
                 if (dentry) { d_drop(dentry); dput(dentry); }
             }
@@ -1599,8 +1602,17 @@ static struct key_type nm_key_type = {
 
 static int __init nomount_init(void)
 {
-    int ret = register_key_type(&nm_key_type);
+    int ret;
+
+    ret = init_srcu_struct(&nomount_srcu);
     if (ret) {
+        nm_err("Failed to init SRCU struct (err: %d)\n", ret);
+        return ret;
+    }
+
+    ret = register_key_type(&nm_key_type);
+    if (ret) {
+        cleanup_srcu_struct(&nomount_srcu);
         nm_err("Failed to register key type (err: %d)\n", ret);
         return ret;
     }
@@ -1616,6 +1628,7 @@ static void __exit nomount_exit(void)
     __nomount_clear_all(NM_CLEAR_UIDS | NM_CLEAR_RULES | NM_CLEAR_EXIT);
     up_write(&nomount_rwsem);
     rcu_barrier();
+    cleanup_srcu_struct(&nomount_srcu);
     nm_info("Unloaded successfully\n");
 }
 
