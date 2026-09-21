@@ -1,0 +1,2 @@
+ok: unsafe memset() usage correctly detected with '__write_overflow_field' in /home/runner/work/BruhKernel/BruhKernel/android14-6.1-138/common/lib/test_fortify/write_overflow_field-memset.c
+lib/test_fortify/write_overflow_field-memset.log.o:                  U __write_overflow_field
