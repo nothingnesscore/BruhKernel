@@ -235,6 +235,62 @@ else
 fi
 
 # ---------------------------------------------------------------------------
+# Fix 10: Multi-Variant KSU/SUSFS Linker Compatibility Stubs
+# When building different KSU variants (SukiSU, KernelSU-Next, WildKSU, ReSukiSU),
+# variant-specific hooks or symbols (input hook, init_rc hook, reboot hook,
+# selinux hide, stat hooks, domain/sid variables) might not be defined by all variants.
+# We inject weak stubs into fs/susfs_compat_stubs.c. Strong definitions in
+# a variant will override them, while any variant lacking them will link cleanly.
+# ---------------------------------------------------------------------------
+STUBS_FILE="$KERNEL_DIR/fs/susfs_compat_stubs.c"
+if [ -d "$KERNEL_DIR/fs" ]; then
+    echo "fix-susfs-compat: creating fs/susfs_compat_stubs.c for multi-variant KSU compatibility"
+    cat > "$STUBS_FILE" << 'EOF_STUBS'
+#include <linux/types.h>
+#include <linux/jump_label.h>
+#include <linux/fs.h>
+#include <linux/cred.h>
+#include <linux/mm.h>
+#include <linux/errno.h>
+
+struct static_key_false fake_status_initialize_key __attribute__((weak)) = STATIC_KEY_FALSE_INIT;
+struct static_key_true ksu_is_init_rc_hook_enabled __attribute__((weak)) = STATIC_KEY_TRUE_INIT;
+struct static_key_true ksu_is_input_hook_enabled __attribute__((weak)) = STATIC_KEY_TRUE_INIT;
+struct static_key_true ksu_su_compat_enabled __attribute__((weak)) = STATIC_KEY_TRUE_INIT;
+
+__attribute__((weak, cold)) int ksu_handle_input_handle_event(unsigned int *type, unsigned int *code, int *value) { return 0; }
+__attribute__((weak, cold)) void ksu_handle_sys_read(unsigned int fd) {}
+__attribute__((weak)) int ksu_handle_sys_reboot(int magic1, int magic2, unsigned int cmd, void __user **arg) { return 1; }
+__attribute__((weak)) int ksu_handle_faccessat(int *dfd, struct filename **filename, int *mode, int *__unused_flags) { return 0; }
+__attribute__((weak)) int ksu_handle_stat(int *dfd, struct filename **filename, int *flags) { return 0; }
+__attribute__((weak)) void ksu_handle_vfs_fstat(int fd, loff_t *kstat_size_ptr) {}
+__attribute__((weak)) int ksu_handle_execveat(int *fd, struct filename **filename_ptr, void *argv, void *envp, int *flags) { return 0; }
+__attribute__((weak)) int ksu_handle_execveat_sucompat(int *fd, struct filename **filename_ptr, void *argv, void *envp, int *flags) { return 0; }
+__attribute__((weak)) int ksu_handle_setresuid(uid_t ruid, uid_t euid, uid_t suid) { return 0; }
+__attribute__((weak)) bool __ksu_is_allow_uid_for_current(uid_t uid) { return false; }
+__attribute__((weak)) void susfs_run_sus_path_loop(void) {}
+
+struct page *fake_status __attribute__((weak)) = NULL;
+char fake_state[4096] __attribute__((weak, aligned(64))) = {0};
+bool ksu_selinux_hide_running __attribute__((weak)) = false;
+bool ksu_selinux_hide_enabled __attribute__((weak)) = false;
+__attribute__((weak)) void initialize_fake_status(void) {}
+__attribute__((weak)) bool susfs_is_sus_kstat_redirect(struct dentry *dentry, struct kstat *stat) { return false; }
+__attribute__((weak)) bool susfs_check_unicode_bypass(const char *pathname) { return false; }
+u32 susfs_ksu_sid __attribute__((weak)) = 0;
+u32 susfs_priv_app_sid __attribute__((weak)) = 0;
+__attribute__((weak)) bool susfs_is_current_ksu_domain(void) { return false; }
+
+EOF_STUBS
+
+    FS_MAKEFILE="$KERNEL_DIR/fs/Makefile"
+    if [ -f "$FS_MAKEFILE" ] && ! grep -q "susfs_compat_stubs.o" "$FS_MAKEFILE"; then
+        echo "fix-susfs-compat: adding susfs_compat_stubs.o to fs/Makefile"
+        echo 'obj-$(CONFIG_KSU_SUSFS) += susfs_compat_stubs.o' >> "$FS_MAKEFILE"
+    fi
+fi
+
+# ---------------------------------------------------------------------------
 # Fix 11: Inject missing KSU_SUSFS Kconfig declarations
 # When KSU variants or custom patches lack Kconfig entries for SUSFS options,
 # Kbuild strips them during merge_config.sh, causing Bazel/Kleaf kernel_config

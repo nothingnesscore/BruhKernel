@@ -289,6 +289,9 @@ bool ksu_selinux_hide_enabled __attribute__((weak)) = false;
 __attribute__((weak)) void initialize_fake_status(void) {}
 __attribute__((weak)) bool susfs_is_sus_kstat_redirect(struct dentry *dentry, struct kstat *stat) { return false; }
 __attribute__((weak)) bool susfs_check_unicode_bypass(const char *pathname) { return false; }
+u32 susfs_ksu_sid __attribute__((weak)) = 0;
+u32 susfs_priv_app_sid __attribute__((weak)) = 0;
+__attribute__((weak)) bool susfs_is_current_ksu_domain(void) { return false; }
 
 EOF_STUBS
 
