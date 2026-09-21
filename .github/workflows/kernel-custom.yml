@@ -158,9 +158,9 @@ on:
         type: boolean
         default: true
       add_nomount:
-        description: "Add ZeroMount (Disabled: NoMount used instead)"
+        description: "Add NoMount VFS Redirection"
         type: boolean
-        default: false
+        default: true
       add_zram:
         description: "Add ZRAM with LZ4K"
         type: boolean
@@ -197,7 +197,7 @@ on:
         default: true
       add_nomount:
         type: boolean
-        default: false
+        default: true
       add_zram:
         type: boolean
         default: true
@@ -211,6 +211,9 @@ on:
         type: boolean
         default: true
       sukisu_commit:
+        type: string
+        default: ""
+      device_codename:
         type: string
         default: ""
 
@@ -445,11 +448,11 @@ jobs:
       sub_level: ${{ needs.resolve.outputs.sub_level }}
       os_patch_level: ${{ needs.resolve.outputs.os_patch_level }}
       add_susfs: true
-      add_nomount: false
+      add_nomount: ${{ github.event_name == 'push' || inputs.add_nomount }}
       add_zram: true
       add_bbg: true
       add_overlayfs_support: true
-      add_kpm: false
+      add_kpm: ${{ github.event_name == 'push' || inputs.add_kpm }}
       sukisu_commit: ''
       device_codename: ${{ needs.resolve.outputs.device_codename }}
 
@@ -462,7 +465,7 @@ jobs:
       sub_level: ${{ needs.resolve.outputs.sub_level }}
       os_patch_level: ${{ needs.resolve.outputs.os_patch_level }}
       add_susfs: true
-      add_nomount: false
+      add_nomount: ${{ github.event_name == 'push' || inputs.add_nomount }}
       add_zram: true
       add_bbg: true
       add_overlayfs_support: true
@@ -479,11 +482,11 @@ jobs:
       sub_level: ${{ needs.resolve.outputs.sub_level }}
       os_patch_level: ${{ needs.resolve.outputs.os_patch_level }}
       add_susfs: true
-      add_nomount: false
+      add_nomount: ${{ github.event_name == 'push' || inputs.add_nomount }}
       add_zram: true
       add_bbg: true
       add_overlayfs_support: true
-      add_kpm: false
+      add_kpm: ${{ github.event_name == 'push' || inputs.add_kpm }}
       sukisu_commit: ''
       device_codename: ${{ needs.resolve.outputs.device_codename }}
 
@@ -496,7 +499,7 @@ jobs:
       sub_level: ${{ needs.resolve.outputs.sub_level }}
       os_patch_level: ${{ needs.resolve.outputs.os_patch_level }}
       add_susfs: true
-      add_nomount: false
+      add_nomount: ${{ github.event_name == 'push' || inputs.add_nomount }}
       add_zram: true
       add_bbg: true
       add_overlayfs_support: true

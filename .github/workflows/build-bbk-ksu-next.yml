@@ -602,7 +602,6 @@ jobs:
       env:
         ADD_SUSFS: ${{ inputs.add_susfs }}
         ADD_NOMOUNT: ${{ inputs.add_nomount }}
-        add_nomount: ${{ inputs.add_nomount }}
         ADD_KPM: ${{ inputs.add_kpm }}
         ADD_ZRAM: ${{ inputs.add_zram }}
         LTO_MODE: ${{ inputs.lto_mode }}

@@ -550,7 +550,6 @@ jobs:
       env:
         ADD_SUSFS: ${{ inputs.add_susfs }}
         ADD_NOMOUNT: ${{ inputs.add_nomount }}
-        add_nomount: ${{ inputs.add_nomount }}
         ADD_ZRAM: ${{ inputs.add_zram }}
         ADD_BBG: ${{ inputs.add_bbg }}
         ADD_OVERLAYFS: ${{ inputs.add_overlayfs_support }}
