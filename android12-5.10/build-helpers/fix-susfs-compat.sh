@@ -262,4 +262,26 @@ EOF_SYM
     done
 fi
 
+# ---------------------------------------------------------------------------
+# Fix 12: Inject missing prototypes in fs/stat.c and fs/namei.c
+# Clang enables -Wimplicit-function-declaration as an error.
+# Ensure susfs_is_sus_kstat_redirect and susfs_check_unicode_bypass
+# have explicit function prototypes before use.
+# ---------------------------------------------------------------------------
+STAT_C="$KERNEL_DIR/fs/stat.c"
+if [ -f "$STAT_C" ] && grep -q "susfs_is_sus_kstat_redirect" "$STAT_C"; then
+    if ! grep -q "extern bool susfs_is_sus_kstat_redirect" "$STAT_C"; then
+        echo "fix-susfs-compat: injecting susfs_is_sus_kstat_redirect prototype into fs/stat.c"
+        sed -i '/susfs_is_sus_kstat_redirect(path.dentry, stat);/i extern bool susfs_is_sus_kstat_redirect(struct dentry *dentry, struct kstat *stat);' "$STAT_C"
+    fi
+fi
+
+NAMEI_C="$KERNEL_DIR/fs/namei.c"
+if [ -f "$NAMEI_C" ] && grep -q "susfs_check_unicode_bypass" "$NAMEI_C"; then
+    if ! grep -q "extern bool susfs_check_unicode_bypass" "$NAMEI_C"; then
+        echo "fix-susfs-compat: injecting susfs_check_unicode_bypass prototype into fs/namei.c"
+        sed -i '/susfs_check_unicode_bypass/i extern bool susfs_check_unicode_bypass(const char *pathname);' "$NAMEI_C"
+    fi
+fi
+
 exit 0
