@@ -234,4 +234,74 @@ else
     echo "fix-susfs-compat: core/init.c not found - skipping include order fix"
 fi
 
+# ---------------------------------------------------------------------------
+# Fix 11: Inject missing KSU_SUSFS Kconfig declarations
+# Some variants (like SukiSU-Ultra) integrate SUSFS into KernelSU but fail to
+# provide the Kconfig declarations. This causes Kbuild to silently drop them
+# from .config during make olddefconfig or Kleaf's merge_config.sh.
+# We inject dummy bool declarations into fs/Kconfig so Kbuild retains them.
+# ---------------------------------------------------------------------------
+FS_KCONFIG="$KERNEL_DIR/fs/Kconfig"
+if [ -f "$FS_KCONFIG" ] && ! grep -Rqw "config KSU_SUSFS" "$KERNEL_DIR/" --include='Kconfig*' 2>/dev/null; then
+    echo "fix-susfs-compat: injecting missing KSU_SUSFS Kconfig declarations into fs/Kconfig"
+    cat >> "$FS_KCONFIG" << 'EOF_KCONFIG'
+
+# [SUSFS Dummy Declarations injected by fix-susfs-compat.sh]
+config KSU_SUSFS
+    bool "KernelSU SUSFS"
+    default y
+config KSU_SUSFS_SUS_PATH
+    bool
+    default y
+config KSU_SUSFS_SUS_MOUNT
+    bool
+    default y
+config KSU_SUSFS_SUS_KSTAT
+    bool
+    default y
+config KSU_SUSFS_SUS_KSTAT_REDIRECT
+    bool
+    default y
+config KSU_SUSFS_SUS_MAP
+    bool
+    default y
+config KSU_SUSFS_SPOOF_UNAME
+    bool
+    default y
+config KSU_SUSFS_ENABLE_LOG
+    bool
+    default y
+config KSU_SUSFS_SPOOF_CMDLINE_OR_BOOTCONFIG
+    bool
+    default y
+config KSU_SUSFS_OPEN_REDIRECT
+    bool
+    default y
+config KSU_SUSFS_HIDE_KSU_SUSFS_SYMBOLS
+    bool
+    default y
+config KSU_SUSFS_UNICODE_FILTER
+    bool
+    default y
+config KSU_SUSFS_AUTO_ADD_SUS_KSU_DEFAULT_MOUNT
+    bool
+    default y
+config KSU_SUSFS_AUTO_ADD_SUS_BIND_MOUNT
+    bool
+    default y
+config KSU_SUSFS_UID_GATED_HIDING
+    bool
+    default y
+config KSU_SUSFS_HIDDEN_NAME
+    bool
+    default y
+config KSU_SUSFS_HARDENED
+    bool
+    default y
+config KSU_SUSFS_HAS_MAGIC_MOUNT
+    bool
+    default y
+EOF_KCONFIG
+fi
+
 exit 0
