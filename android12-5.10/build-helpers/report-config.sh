@@ -15,7 +15,7 @@ candidates=(
   "$KERNEL_ROOT/out/${ANDROID_VER}-${KERNEL_VER}/.config"
 )
 
-shopt -s nullglob
+shopt -s nullglob globstar
 candidates+=(
   "$KERNEL_ROOT"/out/android*/common/.config
   "$KERNEL_ROOT"/out/android*/.config
@@ -23,7 +23,7 @@ candidates+=(
   "$KERNEL_ROOT"/bazel-out/**/common/kernel_aarch64/.config
   "$KERNEL_ROOT"/common/.config
 )
-shopt -u nullglob
+shopt -u nullglob globstar
 
 # Check candidate paths; prioritize .config files containing CONFIG_KSU
 for candidate in "${candidates[@]}"; do

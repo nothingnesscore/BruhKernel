@@ -22,7 +22,7 @@ on:
       add_susfs:
         type: boolean
         default: true
-      add_zeromount:
+      add_nomount:
         type: boolean
         default: true
       add_zram:
@@ -260,7 +260,7 @@ jobs:
         fi
 
     - name: Apply NoMount Patch (zeromount compatibility layer)
-      if: inputs.add_zeromount && inputs.add_susfs
+      if: inputs.add_nomount && inputs.add_susfs
       working-directory: ${{ env.KERNEL_ROOT }}/common
       run: |
         patch -p1 -F3 --no-backup-if-mismatch < "$GITHUB_WORKSPACE/$VERSION_DIR/KernelSU-Next/patches/60_zeromount-${ANDROID_VER}-${KERNEL_VER}.patch"
@@ -337,6 +337,7 @@ jobs:
         while IFS='=' read -r cfg _; do
           symbol="${cfg#CONFIG_}"
           [[ "$cfg" =~ ^CONFIG_ ]] || continue
+          [[ "$symbol" =~ ^(KSU_SUSFS|NOMOUNT|KPM) ]] && continue
           grep -Rqw "config ${symbol}" common/ --include='Kconfig*' 2>/dev/null && continue
           echo "Pruning undeclared config symbol: ${cfg}"
           sed -i "/^${cfg}=/d" "$DEFCONFIG_FRAGMENT" "$DEFCONFIG" 2>/dev/null || true
@@ -546,8 +547,8 @@ jobs:
       if: always()
       env:
         ADD_SUSFS: ${{ inputs.add_susfs }}
-        ADD_NOMOUNT: ${{ inputs.add_zeromount }}
-        ADD_ZEROMOUNT: ${{ inputs.add_zeromount }}
+        ADD_NOMOUNT: ${{ inputs.add_nomount }}
+        add_nomount: ${{ inputs.add_nomount }}
         ADD_ZRAM: ${{ inputs.add_zram }}
         ADD_BBG: ${{ inputs.add_bbg }}
         ADD_OVERLAYFS: ${{ inputs.add_overlayfs_support }}

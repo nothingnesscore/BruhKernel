@@ -131,7 +131,7 @@ jobs:
               -f kernel_target="android14-6.1.138 (2025-06)" \
               -f ksu_variant="$TARGET_KSU" \
               -f add_susfs=true \
-              -f add_zeromount=true \
+              -f add_nomount=true \
               -f add_zram=true \
               -f add_overlayfs_support=true
             echo "Build dispatched successfully for $TARGET_KSU!"

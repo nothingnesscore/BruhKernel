@@ -157,7 +157,7 @@ on:
         description: "Add SUSFS"
         type: boolean
         default: true
-      add_zeromount:
+      add_nomount:
         description: "Add ZeroMount (Disabled: NoMount used instead)"
         type: boolean
         default: false
@@ -195,7 +195,7 @@ on:
       add_susfs:
         type: boolean
         default: true
-      add_zeromount:
+      add_nomount:
         type: boolean
         default: false
       add_zram:
@@ -445,7 +445,7 @@ jobs:
       sub_level: ${{ needs.resolve.outputs.sub_level }}
       os_patch_level: ${{ needs.resolve.outputs.os_patch_level }}
       add_susfs: true
-      add_zeromount: false
+      add_nomount: false
       add_zram: true
       add_bbg: true
       add_overlayfs_support: true
@@ -462,7 +462,7 @@ jobs:
       sub_level: ${{ needs.resolve.outputs.sub_level }}
       os_patch_level: ${{ needs.resolve.outputs.os_patch_level }}
       add_susfs: true
-      add_zeromount: false
+      add_nomount: false
       add_zram: true
       add_bbg: true
       add_overlayfs_support: true
@@ -479,7 +479,7 @@ jobs:
       sub_level: ${{ needs.resolve.outputs.sub_level }}
       os_patch_level: ${{ needs.resolve.outputs.os_patch_level }}
       add_susfs: true
-      add_zeromount: false
+      add_nomount: false
       add_zram: true
       add_bbg: true
       add_overlayfs_support: true
@@ -496,7 +496,7 @@ jobs:
       sub_level: ${{ needs.resolve.outputs.sub_level }}
       os_patch_level: ${{ needs.resolve.outputs.os_patch_level }}
       add_susfs: true
-      add_zeromount: false
+      add_nomount: false
       add_zram: true
       add_bbg: true
       add_overlayfs_support: true

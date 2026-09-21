@@ -15,7 +15,7 @@ on:
         description: "Add SUSFS support"
         type: boolean
         default: true
-      add_zeromount:
+      add_nomount:
         description: "Add NoMount VFS Redirection"
         type: boolean
         default: true
@@ -60,7 +60,7 @@ on:
       add_susfs:
         type: boolean
         default: true
-      add_zeromount:
+      add_nomount:
         type: boolean
         default: true
       add_kpm:
@@ -337,7 +337,7 @@ jobs:
         [ -s "$PATCH" ] && patch -p1 --no-backup-if-mismatch < "$PATCH" || echo "No 70_ patch needed"
 
     - name: Apply NoMount Patch (zeromount compatibility layer)
-      if: inputs.add_zeromount && inputs.add_susfs
+      if: inputs.add_nomount && inputs.add_susfs
       working-directory: ${{ env.KERNEL_COMMON }}
       run: |
         patch -p1 -F3 --no-backup-if-mismatch < "$GITHUB_WORKSPACE/$VERSION_DIR/SukiSU-Ultra/patches/60_zeromount-${GKI_TAG}.patch"
@@ -377,7 +377,7 @@ jobs:
       working-directory: ${{ env.SYNC_DIR }}
       env:
         ADD_SUSFS: ${{ inputs.add_susfs }}
-        ADD_ZEROMOUNT: ${{ inputs.add_zeromount }}
+        add_nomount: ${{ inputs.add_nomount }}
         ADD_KPM: ${{ inputs.add_kpm }}
         ADD_ZRAM: ${{ inputs.add_zram }}
         LTO_MODE: ${{ inputs.lto_mode }}
@@ -586,8 +586,8 @@ jobs:
       if: always()
       env:
         ADD_SUSFS: ${{ inputs.add_susfs }}
-        ADD_NOMOUNT: ${{ inputs.add_zeromount }}
-        ADD_ZEROMOUNT: ${{ inputs.add_zeromount }}
+        ADD_NOMOUNT: ${{ inputs.add_nomount }}
+        add_nomount: ${{ inputs.add_nomount }}
         ADD_KPM: ${{ inputs.add_kpm }}
         ADD_ZRAM: ${{ inputs.add_zram }}
         LTO_MODE: ${{ inputs.lto_mode }}
