@@ -290,72 +290,30 @@ fi
 
 # ---------------------------------------------------------------------------
 # Fix 11: Inject missing KSU_SUSFS Kconfig declarations
-# Some variants (like SukiSU-Ultra) integrate SUSFS into KernelSU but fail to
-# provide the Kconfig declarations. This causes Kbuild to silently drop them
-# from .config during make olddefconfig or Kleaf's merge_config.sh.
-# We inject dummy bool declarations into fs/Kconfig so Kbuild retains them.
+# When KSU variants or custom patches lack Kconfig entries for SUSFS options,
+# Kbuild strips them during merge_config.sh, causing Bazel/Kleaf kernel_config
+# check to fail with "Are they declared in Kconfig?".
+# We check every symbol and declare any missing ones in fs/Kconfig.
 # ---------------------------------------------------------------------------
 FS_KCONFIG="$KERNEL_DIR/fs/Kconfig"
-if [ -f "$FS_KCONFIG" ] && ! grep -Rqw "config KSU_SUSFS" "$KERNEL_DIR/" --include='Kconfig*' 2>/dev/null; then
-    echo "fix-susfs-compat: injecting missing KSU_SUSFS Kconfig declarations into fs/Kconfig"
-    cat >> "$FS_KCONFIG" << 'EOF_KCONFIG'
+if [ -f "$FS_KCONFIG" ]; then
+    for sym in KSU_SUSFS KSU_SUSFS_SUS_PATH KSU_SUSFS_SUS_MOUNT KSU_SUSFS_SUS_KSTAT \
+               KSU_SUSFS_SUS_KSTAT_REDIRECT KSU_SUSFS_SUS_MAP KSU_SUSFS_SPOOF_UNAME \
+               KSU_SUSFS_ENABLE_LOG KSU_SUSFS_SPOOF_CMDLINE_OR_BOOTCONFIG \
+               KSU_SUSFS_OPEN_REDIRECT KSU_SUSFS_HIDE_KSU_SUSFS_SYMBOLS \
+               KSU_SUSFS_UNICODE_FILTER KSU_SUSFS_AUTO_ADD_SUS_KSU_DEFAULT_MOUNT \
+               KSU_SUSFS_AUTO_ADD_SUS_BIND_MOUNT KSU_SUSFS_UID_GATED_HIDING \
+               KSU_SUSFS_HIDDEN_NAME KSU_SUSFS_HARDENED KSU_SUSFS_HAS_MAGIC_MOUNT; do
+        if ! grep -Rqw "config ${sym}" "$KERNEL_DIR" --include='Kconfig*' 2>/dev/null; then
+            echo "fix-susfs-compat: injecting missing config ${sym} into fs/Kconfig"
+            cat >> "$FS_KCONFIG" << EOF_SYM
 
-# [SUSFS Dummy Declarations injected by fix-susfs-compat.sh]
-config KSU_SUSFS
-    bool "KernelSU SUSFS"
-    default y
-config KSU_SUSFS_SUS_PATH
+config ${sym}
     bool
     default y
-config KSU_SUSFS_SUS_MOUNT
-    bool
-    default y
-config KSU_SUSFS_SUS_KSTAT
-    bool
-    default y
-config KSU_SUSFS_SUS_KSTAT_REDIRECT
-    bool
-    default y
-config KSU_SUSFS_SUS_MAP
-    bool
-    default y
-config KSU_SUSFS_SPOOF_UNAME
-    bool
-    default y
-config KSU_SUSFS_ENABLE_LOG
-    bool
-    default y
-config KSU_SUSFS_SPOOF_CMDLINE_OR_BOOTCONFIG
-    bool
-    default y
-config KSU_SUSFS_OPEN_REDIRECT
-    bool
-    default y
-config KSU_SUSFS_HIDE_KSU_SUSFS_SYMBOLS
-    bool
-    default y
-config KSU_SUSFS_UNICODE_FILTER
-    bool
-    default y
-config KSU_SUSFS_AUTO_ADD_SUS_KSU_DEFAULT_MOUNT
-    bool
-    default y
-config KSU_SUSFS_AUTO_ADD_SUS_BIND_MOUNT
-    bool
-    default y
-config KSU_SUSFS_UID_GATED_HIDING
-    bool
-    default y
-config KSU_SUSFS_HIDDEN_NAME
-    bool
-    default y
-config KSU_SUSFS_HARDENED
-    bool
-    default y
-config KSU_SUSFS_HAS_MAGIC_MOUNT
-    bool
-    default y
-EOF_KCONFIG
+EOF_SYM
+        fi
+    done
 fi
 
 exit 0

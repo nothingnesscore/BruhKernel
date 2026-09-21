@@ -296,4 +296,32 @@ EOF_STUBS
     fi
 fi
 
+# ---------------------------------------------------------------------------
+# Fix 11: Inject missing KSU_SUSFS Kconfig declarations
+# When KSU variants or custom patches lack Kconfig entries for SUSFS options,
+# Kbuild strips them during merge_config.sh, causing Bazel/Kleaf kernel_config
+# check to fail with "Are they declared in Kconfig?".
+# We check every symbol and declare any missing ones in fs/Kconfig.
+# ---------------------------------------------------------------------------
+FS_KCONFIG="$KERNEL_DIR/fs/Kconfig"
+if [ -f "$FS_KCONFIG" ]; then
+    for sym in KSU_SUSFS KSU_SUSFS_SUS_PATH KSU_SUSFS_SUS_MOUNT KSU_SUSFS_SUS_KSTAT \
+               KSU_SUSFS_SUS_KSTAT_REDIRECT KSU_SUSFS_SUS_MAP KSU_SUSFS_SPOOF_UNAME \
+               KSU_SUSFS_ENABLE_LOG KSU_SUSFS_SPOOF_CMDLINE_OR_BOOTCONFIG \
+               KSU_SUSFS_OPEN_REDIRECT KSU_SUSFS_HIDE_KSU_SUSFS_SYMBOLS \
+               KSU_SUSFS_UNICODE_FILTER KSU_SUSFS_AUTO_ADD_SUS_KSU_DEFAULT_MOUNT \
+               KSU_SUSFS_AUTO_ADD_SUS_BIND_MOUNT KSU_SUSFS_UID_GATED_HIDING \
+               KSU_SUSFS_HIDDEN_NAME KSU_SUSFS_HARDENED KSU_SUSFS_HAS_MAGIC_MOUNT; do
+        if ! grep -Rqw "config ${sym}" "$KERNEL_DIR" --include='Kconfig*' 2>/dev/null; then
+            echo "fix-susfs-compat: injecting missing config ${sym} into fs/Kconfig"
+            cat >> "$FS_KCONFIG" << EOF_SYM
+
+config ${sym}
+    bool
+    default y
+EOF_SYM
+        fi
+    done
+fi
+
 exit 0

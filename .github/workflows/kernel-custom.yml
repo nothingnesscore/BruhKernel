@@ -176,7 +176,7 @@ on:
       add_kpm:
         description: "Add KPM (SukiSU/ReSukiSU)"
         type: boolean
-        default: true
+        default: false
       sukisu_commit:
         description: "KSU commit override (empty = latest)"
         type: string
@@ -209,7 +209,7 @@ on:
         default: true
       add_kpm:
         type: boolean
-        default: true
+        default: false
       sukisu_commit:
         type: string
         default: ""
@@ -452,7 +452,7 @@ jobs:
       add_zram: true
       add_bbg: true
       add_overlayfs_support: true
-      add_kpm: ${{ github.event_name == 'push' || inputs.add_kpm }}
+      add_kpm: ${{ inputs.add_kpm || false }}
       sukisu_commit: ''
       device_codename: ${{ needs.resolve.outputs.device_codename }}
 
@@ -486,7 +486,7 @@ jobs:
       add_zram: true
       add_bbg: true
       add_overlayfs_support: true
-      add_kpm: ${{ github.event_name == 'push' || inputs.add_kpm }}
+      add_kpm: ${{ inputs.add_kpm || false }}
       sukisu_commit: ''
       device_codename: ${{ needs.resolve.outputs.device_codename }}
 
