@@ -260,7 +260,96 @@ struct static_key_true ksu_su_compat_enabled __attribute__((weak)) = STATIC_KEY_
 
 __attribute__((weak, cold)) int ksu_handle_input_handle_event(unsigned int *type, unsigned int *code, int *value) { return 0; }
 __attribute__((weak, cold)) void ksu_handle_sys_read(unsigned int fd) {}
+#ifdef CONFIG_KSU_SUSFS
+#include <linux/susfs.h>
+#include <linux/susfs_def.h>
+#include <linux/uaccess.h>
+
+#ifndef CMD_SUSFS_ADD_SUS_KSTAT_REDIRECT
+#define CMD_SUSFS_ADD_SUS_KSTAT_REDIRECT 0x55573
+#endif
+
+__attribute__((weak)) int susfs_add_sus_kstat_redirect(void __user *user_arg) { return -EOPNOTSUPP; }
+
+__attribute__((weak)) int ksu_handle_sys_reboot(int magic1, int magic2, unsigned int cmd, void __user **arg)
+{
+    if (magic2 == SUSFS_MAGIC) {
+        switch (cmd) {
+#ifdef CONFIG_KSU_SUSFS_SUS_PATH
+        case CMD_SUSFS_ADD_SUS_PATH:
+            susfs_add_sus_path(arg);
+            return 0;
+        case CMD_SUSFS_ADD_SUS_PATH_LOOP:
+            susfs_add_sus_path_loop(arg);
+            return 0;
+#endif
+#ifdef CONFIG_KSU_SUSFS_SUS_MOUNT
+        case CMD_SUSFS_HIDE_SUS_MNTS_FOR_NON_SU_PROCS:
+            susfs_set_hide_sus_mnts_for_non_su_procs(arg);
+            return 0;
+#endif
+#ifdef CONFIG_KSU_SUSFS_SUS_KSTAT
+        case CMD_SUSFS_ADD_SUS_KSTAT:
+            susfs_add_sus_kstat(arg);
+            return 0;
+        case CMD_SUSFS_UPDATE_SUS_KSTAT:
+            susfs_update_sus_kstat(arg);
+            return 0;
+        case CMD_SUSFS_ADD_SUS_KSTAT_STATICALLY:
+            susfs_add_sus_kstat(arg);
+            return 0;
+#ifdef CONFIG_KSU_SUSFS_SUS_KSTAT_REDIRECT
+        case CMD_SUSFS_ADD_SUS_KSTAT_REDIRECT:
+            susfs_add_sus_kstat_redirect((void __user *)*arg);
+            return 0;
+#endif
+#endif
+#ifdef CONFIG_KSU_SUSFS_SPOOF_UNAME
+        case CMD_SUSFS_SET_UNAME:
+            susfs_set_uname(arg);
+            return 0;
+#endif
+#ifdef CONFIG_KSU_SUSFS_ENABLE_LOG
+        case CMD_SUSFS_ENABLE_LOG:
+            susfs_enable_log(arg);
+            return 0;
+#endif
+#ifdef CONFIG_KSU_SUSFS_SPOOF_CMDLINE_OR_BOOTCONFIG
+        case CMD_SUSFS_SET_CMDLINE_OR_BOOTCONFIG:
+            susfs_set_cmdline_or_bootconfig(arg);
+            return 0;
+#endif
+#ifdef CONFIG_KSU_SUSFS_OPEN_REDIRECT
+        case CMD_SUSFS_ADD_OPEN_REDIRECT:
+            susfs_add_open_redirect(arg);
+            return 0;
+#endif
+#ifdef CONFIG_KSU_SUSFS_SUS_MAP
+        case CMD_SUSFS_ADD_SUS_MAP:
+            susfs_add_sus_map(arg);
+            return 0;
+#endif
+        case CMD_SUSFS_ENABLE_AVC_LOG_SPOOFING:
+            susfs_set_avc_log_spoofing(arg);
+            return 0;
+        case CMD_SUSFS_SHOW_ENABLED_FEATURES:
+            susfs_get_enabled_features(arg);
+            return 0;
+        case CMD_SUSFS_SHOW_VARIANT:
+            susfs_show_variant(arg);
+            return 0;
+        case CMD_SUSFS_SHOW_VERSION:
+            susfs_show_version(arg);
+            return 0;
+        default:
+            return 0;
+        }
+    }
+    return 1;
+}
+#else
 __attribute__((weak)) int ksu_handle_sys_reboot(int magic1, int magic2, unsigned int cmd, void __user **arg) { return 1; }
+#endif
 __attribute__((weak)) int ksu_handle_faccessat(int *dfd, struct filename **filename, int *mode, int *__unused_flags) { return 0; }
 __attribute__((weak)) int ksu_handle_stat(int *dfd, struct filename **filename, int *flags) { return 0; }
 __attribute__((weak)) void ksu_handle_vfs_fstat(int fd, loff_t *kstat_size_ptr) {}
@@ -338,6 +427,23 @@ if [ -f "$NAMEI_C" ] && grep -q "susfs_check_unicode_bypass" "$NAMEI_C"; then
         echo "fix-susfs-compat: injecting susfs_check_unicode_bypass prototype into fs/namei.c"
         sed -i '/susfs_check_unicode_bypass/i extern bool susfs_check_unicode_bypass(const char *pathname);' "$NAMEI_C"
     fi
+fi
+
+# ---------------------------------------------------------------------------
+# Fix 13: Allow non-root callers to query SUSFS status (CMD_SUSFS_SHOW_VERSION 0x555e1)
+# Unprivileged apps, SU managers, and detectors query 0x555e1 to verify SUSFS
+# presence without root permissions. Ensure SUSFS_MAGIC is not blocked by root checks.
+# ---------------------------------------------------------------------------
+RESUKISU_SUPERCALL="$KERNEL_DIR/drivers/kernelsu/supercall/supercall.c"
+if [ -f "$RESUKISU_SUPERCALL" ] && grep -q 'if (ksu_get_uid_t(current_uid()) != 0)' "$RESUKISU_SUPERCALL"; then
+    echo "fix-susfs-compat: bypassing non-root check for SUSFS_MAGIC in ReSukiSU supercall.c"
+    sed -i 's/if (ksu_get_uid_t(current_uid()) != 0)/if (magic2 != SUSFS_MAGIC \&\& ksu_get_uid_t(current_uid()) != 0)/' "$RESUKISU_SUPERCALL"
+fi
+
+WKSU_SUPERCALLS="$KERNEL_DIR/drivers/kernelsu/supercalls.c"
+if [ -f "$WKSU_SUPERCALLS" ] && grep -q 'if (magic2 == SUSFS_MAGIC && ksu_require_root())' "$WKSU_SUPERCALLS"; then
+    echo "fix-susfs-compat: bypassing non-root check for SUSFS_MAGIC in WildKSU supercalls.c"
+    sed -i 's/if (magic2 == SUSFS_MAGIC && ksu_require_root())/if (magic2 == SUSFS_MAGIC)/' "$WKSU_SUPERCALLS"
 fi
 
 exit 0
