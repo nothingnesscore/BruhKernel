@@ -234,6 +234,8 @@ enum {
     NM_CMD_CLEAR_UIDS,
     NM_CMD_GET_LIST,
     NM_CMD_GET_UIDS,
+    NM_CMD_BLOCK_ISOLATED_UIDS,
+    NM_CMD_GET_ISOLATED_STATE,
 };
 
 struct nm_payload {

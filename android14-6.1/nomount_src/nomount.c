@@ -9,10 +9,16 @@
 
 /*** Helpers ***/
 
+static bool nm_block_isolated_uids = false;
 static __always_inline bool nomount_is_uid_blocked(uid_t target_uid)
 {
     struct nm_uid_array *arr;
     bool blocked = false;
+
+    if (unlikely(READ_ONCE(nm_block_isolated_uids))) {
+        uid_t app_id = target_uid % 100000U;
+        if (app_id >= 90000U && app_id <= 99999U) return true;
+    }
 
     if (likely(!rcu_access_pointer(nomount_uids)))
         return false;
@@ -236,15 +242,10 @@ static inline void nomount_emit_virtual_children(struct dir_context *ctx, struct
 
 static void nomount_init_prealloc_inode(struct inode *inode, struct nm_inode_info *info, struct nm_rule_info *rule_info)
 {
-    struct inode *r_inode = NULL;
+    struct inode *r_inode = rule_info->r_path.dentry ? d_backing_inode(rule_info->r_path.dentry) : NULL;
     info->flags = rule_info->flags;
     info->dir_node = rule_info->this_dir;
-    if (rule_info->flags & NM_FLAG_VIRTUAL_DIR) {
-        info->r_path = (struct path){ .dentry = NULL, .mnt = NULL };
-    } else {
-        info->r_path = rule_info->r_path.dentry ? rule_info->r_path : (struct path){ .dentry = NULL, .mnt = NULL };
-        r_inode = info->r_path.dentry ? d_backing_inode(info->r_path.dentry) : NULL;
-    }
+    info->r_path = rule_info->r_path;
 
     inode->i_ino = rule_info->v_ino;
     inode->i_private = info;
@@ -1565,6 +1566,16 @@ static int nm_process_payload(unsigned long user_addr)
             mutex_lock(&nomount_mutex);
             payload->status = nm_uid_del(payload->target_uid);
             mutex_unlock(&nomount_mutex);
+            break;
+
+        case NM_CMD_BLOCK_ISOLATED_UIDS:
+            WRITE_ONCE(nm_block_isolated_uids, payload->arg1 != 0);
+            break;
+
+        case NM_CMD_GET_ISOLATED_STATE:
+            payload->buffer[0] = READ_ONCE(nm_block_isolated_uids) ? '1' : '0';
+            payload->buffer[1] = '\n';
+            payload->data_size = 2;
             break;
 
         case NM_CMD_CLEAR_ALL:
