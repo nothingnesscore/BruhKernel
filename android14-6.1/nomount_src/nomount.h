@@ -6,7 +6,6 @@
 #include <linux/list.h>
 #include <linux/rcupdate.h>
 #include <linux/rwsem.h>
-#include <linux/srcu.h>
 #include <linux/atomic.h>
 #include <linux/file.h>
 #include <linux/key-type.h>
@@ -33,7 +32,6 @@
 
 static void *nomount_art_root = NULL;
 static struct nm_uid_array __rcu *nomount_uids = NULL;
-static struct srcu_struct nomount_srcu;
 static LIST_HEAD(nomount_rules_list);
 static LIST_HEAD(nomount_sb_list);
 static DECLARE_RWSEM(nomount_rwsem);
@@ -107,7 +105,6 @@ struct nomount_dir_node {
             struct nm_fop __rcu *fop;
         };
     };
-    seqcount_t seq;
 };
 
 struct nomount_rule {
