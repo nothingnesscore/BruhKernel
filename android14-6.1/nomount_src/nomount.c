@@ -1474,11 +1474,8 @@ static void __nomount_clear_all(int clear_flags)
     if (clear_flags & NM_CLEAR_RULES) {
         int bkt;
         struct hlist_node *tmp_node;
-        hash_for_each_safe(nomount_rules_ht, bkt, tmp_node, rule, ht_node) {
-            hash_del_rcu(&rule->ht_node);
-            rule->parent_dir = (void *)r_victims;
-            r_victims = rule;
-        }
+        hash_for_each_safe(nomount_rules_ht, bkt, tmp_node, rule, ht_node)
+            nm_detach_rule_locked(rule, &r_victims, false);
         synchronize_rcu();
         while (r_victims) {
             struct nomount_rule *next = (void *)r_victims->parent_dir;

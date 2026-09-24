@@ -32,7 +32,7 @@
 #define nm_err(fmt, ...)  printk(KERN_ERR "NoMount: [ERROR] " fmt, ##__VA_ARGS__)
 
 static struct nm_uid_array __rcu *nomount_uids = NULL;
-static DEFINE_HASHTABLE(nomount_rules_ht, 12);
+static DEFINE_HASHTABLE(nomount_rules_ht, 6);
 static DEFINE_MUTEX(nomount_mutex);
 static LIST_HEAD(nomount_sb_list);
 
