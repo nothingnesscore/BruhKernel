@@ -150,7 +150,7 @@ static const struct dentry_operations nm_owned_dops;
 /*** forward declarations ***/
 static struct dentry *nomount_hijacked_lookup(struct inode *dir, struct dentry *dentry, unsigned int flags);
 static int nomount_hijacked_iterate_dir(struct file *file, struct dir_context *ctx);
-static void nomount_hijacked_destroy_inode(struct inode *inode);
+static void nomount_hijacked_evict_inode(struct inode *inode);
 static void nomount_hijack_dentry_ops(struct inode *dir, struct dentry *dentry, bool injected);
 static void nm_free_rule(struct nomount_rule *rule);
 
@@ -351,7 +351,7 @@ static inline struct nm_fop *nm_get_nm_fop(const struct file_operations *fop) {
 }
 
 static inline struct nm_sop *nm_get_nm_sop(const struct super_operations *sop) {
-    if (likely(sop) && sop->destroy_inode == nomount_hijacked_destroy_inode)
+    if (likely(sop) && sop->evict_inode == nomount_hijacked_evict_inode)
         return container_of(sop, struct nm_sop, fake_sop);
     return NULL;
 }

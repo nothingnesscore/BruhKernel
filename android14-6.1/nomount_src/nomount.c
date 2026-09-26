@@ -315,9 +315,22 @@ static struct dentry *nomount_resolve_rule_dentry(struct inode *dir, struct dent
     }
 
     if (likely(prealloc_inode && ((rule_info.flags & NM_FLAG_VIRTUAL_DIR) || rule_info.r_path.dentry))) {
-        if (rule_info.this_dir && (splice_inode = cmpxchg(&rule_info.this_dir->v_inode, NULL, prealloc_inode))) {
-            if (splice_inode == (struct inode *)-1L) goto unlock_out;
-            igrab(splice_inode);
+        if (rule_info.this_dir) {
+            splice_inode = cmpxchg(&rule_info.this_dir->v_inode, NULL, (struct inode *)-2L);
+            if (splice_inode == NULL) {
+                nomount_init_prealloc_inode(prealloc_inode, prealloc_info, &rule_info);
+                smp_store_release(&rule_info.this_dir->v_inode, prealloc_inode);
+                splice_inode = prealloc_inode;
+                prealloc_inode = NULL; prealloc_info = NULL;
+                rule_info.r_path.dentry = NULL; 
+            } else {
+                while (splice_inode == (struct inode *)-2L) {
+                    cpu_relax();
+                    splice_inode = smp_load_acquire(&rule_info.this_dir->v_inode);
+                }
+                if (splice_inode == (struct inode *)-1L) goto unlock_out;
+                igrab(splice_inode);
+            }
         } else {
             nomount_init_prealloc_inode(prealloc_inode, prealloc_info, &rule_info);
             splice_inode = prealloc_inode;
@@ -431,16 +444,6 @@ do_real_iterate:
     return -ENOTDIR;
 }
 
-static void nomount_hijacked_destroy_inode(struct inode *inode)
-{
-    struct nm_sop *nm_sop;
-    (inode->i_op == &nm_file_iops || inode->i_op == &nm_dir_iops) ? nm_destroy_virtual_inode(inode) : nm_destroy_hijacked_inode(inode, false);
-
-    nm_sop = nm_get_nm_sop(smp_load_acquire(&inode->i_sb->s_op));
-    if (nm_sop && nm_sop->orig_sop && nm_sop->orig_sop->destroy_inode)
-        nm_sop->orig_sop->destroy_inode(inode);
-}
-
 static int nomount_hijacked_drop_inode(struct inode *inode)
 {
     struct nm_sop *nm_sop;
@@ -456,14 +459,14 @@ generic_fn:
 
 static void nomount_hijacked_evict_inode(struct inode *inode)
 {
-    struct nm_sop *nm_sop;
-    if (inode->i_op == &nm_file_iops || inode->i_op == &nm_dir_iops) goto generic_fn;
+    struct nm_sop *nm_sop = nm_get_nm_sop(smp_load_acquire(&inode->i_sb->s_op));
 
-    nm_sop = nm_get_nm_sop(smp_load_acquire(&inode->i_sb->s_op));
+    (inode->i_op == &nm_file_iops || inode->i_op == &nm_dir_iops) ? 
+        nm_destroy_virtual_inode(inode) : nm_destroy_hijacked_inode(inode, false);
+
     if (nm_sop && nm_sop->orig_sop && nm_sop->orig_sop->evict_inode) {
         nm_sop->orig_sop->evict_inode(inode);
     } else {
-generic_fn:
         truncate_inode_pages_final(&inode->i_data);
         clear_inode(inode);
     }
@@ -929,7 +932,6 @@ static inline void nomount_hijack_superblock(struct super_block *sb)
     nm_sop->orig_sop = sb->s_op;
     nm_sop->orig_xattr = nm_sop->fake_xattr = NULL;
     nm_sop->sb = sb;
-    nm_sop->fake_sop.destroy_inode = nomount_hijacked_destroy_inode;
     nm_sop->fake_sop.drop_inode = nomount_hijacked_drop_inode;
     nm_sop->fake_sop.evict_inode = nomount_hijacked_evict_inode;
 
@@ -1250,19 +1252,28 @@ static int nomount_generate_virtual_topology(struct nomount_rule *target_rule)
         if (i > 0) v_path[i] = '\0';
         if ((p = kern_path((parent_len == 1) ? "/" : v_path, LOOKUP_FOLLOW, &p_path)), (v_path[i] = orig_vpath), (p == 0)) {
             struct inode *v_inode = d_backing_inode(p_path.dentry);
-            struct nomount_dir_node *old_node = ({
+            struct nomount_dir_node *old_node = NULL;
+            bool is_virtual = false;
+
+            if (v_inode->i_op == &nm_dir_iops || v_inode->i_op == &nm_file_iops) {
+                struct nm_inode_info *info = v_inode->i_private;
+                old_node = info ? info->dir_node : NULL;
+                is_virtual = true;
+            } else {
                 struct nm_iop *iop = nm_get_nm_iop(smp_load_acquire(&v_inode->i_op));
                 struct nm_fop *fop = nm_get_nm_fop(smp_load_acquire(&v_inode->i_fop));
-                (iop && iop->dir_node) ? iop->dir_node : (fop ? fop->dir_node : NULL);
-            });
+                old_node = (iop && iop->dir_node) ? iop->dir_node : (fop ? fop->dir_node : NULL);
+            }
 
             if (unlikely(!(dir_node = old_node ?: __nomount_alloc_dir_node()))) {
                 err = -ENOMEM;
             } else if ((err = __nomount_inject_child_locked(dir_node, current_rule, child_name, child_len))) {
                 if (!old_node) kfree(dir_node);
             } else {
-                nomount_hijack_dir_ops(dir_node, v_inode);
-                nomount_hijack_superblock(p_path.dentry->d_sb);
+                if (!is_virtual) {
+                    nomount_hijack_dir_ops(dir_node, v_inode);
+                    nomount_hijack_superblock(p_path.dentry->d_sb);
+                }
                 shrink_dcache_parent(p_path.dentry);
                 struct dentry *dentry = nm_hash_and_lookup(p_path.dentry, &(struct qstr)QSTR_INIT(child_name, child_len));
                 if (dentry) { d_drop(dentry); dput(dentry); }
