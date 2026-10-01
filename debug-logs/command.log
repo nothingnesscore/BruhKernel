@@ -1,0 +1,548 @@
+Loading: 
+Loading: 
+Loading: 1 packages loaded
+Loading: 1 packages loaded
+    currently loading: common
+Analyzing: target //common:kernel_aarch64_dist (2 packages loaded)
+Analyzing: target //common:kernel_aarch64_dist (2 packages loaded, 0 targets configured)
+Analyzing: target //common:kernel_aarch64_dist (56 packages loaded, 93686 targets configured)
+INFO: Analyzed target //common:kernel_aarch64_dist (56 packages loaded, 93769 targets configured).
+ checking cached actions
+INFO: Found 1 target...
+[0 / 7] [Prepa] Creating source manifest for //common:kernel_aarch64_dist
+[166 / 422] [Prepa] Creating symlinks to in-tree tools @//build/kernel:hermetic-tools/which
+[377 / 422] [Prepa] action 'SolibSymlink _solib_x86_64/_U_S_Sprebuilts_Skernel-build-tools_Clinux_Ux86_Uimported_Ulibs_Ulinux-x86_Slib64_Slibz-host.so___Uprebuilts_Skernel-build-tools_Slinux-x86_Slib64/libz-host.so'
+[400 / 422] Creating symlinks to @//build/kernel:hermetic-tools [for tool]; 1s processwrapper-sandbox ... (4 actions running)
+[404 / 422] Executing genrule //build/kernel:gki_certification_tools; 0s processwrapper-sandbox ... (2 actions, 1 running)
+[405 / 422] Executing genrule //build/kernel:gki_certification_tools; 1s processwrapper-sandbox ... (2 actions running)
+[406 / 422] Executing genrule //build/kernel:gki_certification_tools; 2s processwrapper-sandbox ... (3 actions running)
+[409 / 422] Executing genrule //build/kernel:gki_certification_tools; 3s processwrapper-sandbox
+[410 / 422] Creating kernel config (lto=thin;sukisu_gki.fragment;trim) @//common:kernel_aarch64_config; 1s local
+INFO: From Creating kernel config (lto=thin;sukisu_gki.fragment;trim) @//common:kernel_aarch64_config:
+.config:7569:warning: override: KSU_SUSFS changes choice state
+.config:7596:warning: override: ZRAM_DEF_COMP_LZ4KD changes choice state
+[411 / 422] [Prepa] Building UAPI kernel headers kernel_aarch64_uapi_headers
+[411 / 422] Building kernel (lto=thin;sukisu_gki.fragment;trim) @//common:kernel_aarch64; 1s local ... (3 actions running)
+[411 / 422] Building kernel (lto=thin;sukisu_gki.fragment;trim) @//common:kernel_aarch64; 11s local ... (3 actions running)
+[412 / 422] Building kernel (lto=thin;sukisu_gki.fragment;trim) @//common:kernel_aarch64; 16s local ... (2 actions running)
+[413 / 422] Building kernel (lto=thin;sukisu_gki.fragment;trim) @//common:kernel_aarch64; 19s local
+[413 / 422] Building kernel (lto=thin;sukisu_gki.fragment;trim) @//common:kernel_aarch64; 30s local
+[413 / 422] Building kernel (lto=thin;sukisu_gki.fragment;trim) @//common:kernel_aarch64; 60s local
+[413 / 422] Building kernel (lto=thin;sukisu_gki.fragment;trim) @//common:kernel_aarch64; 120s local
+[413 / 422] Building kernel (lto=thin;sukisu_gki.fragment;trim) @//common:kernel_aarch64; 180s local
+[413 / 422] Building kernel (lto=thin;sukisu_gki.fragment;trim) @//common:kernel_aarch64; 240s local
+[413 / 422] Building kernel (lto=thin;sukisu_gki.fragment;trim) @//common:kernel_aarch64; 300s local
+[413 / 422] Building kernel (lto=thin;sukisu_gki.fragment;trim) @//common:kernel_aarch64; 361s local
+[413 / 422] Building kernel (lto=thin;sukisu_gki.fragment;trim) @//common:kernel_aarch64; 421s local
+[413 / 422] Building kernel (lto=thin;sukisu_gki.fragment;trim) @//common:kernel_aarch64; 481s local
+[413 / 422] Building kernel (lto=thin;sukisu_gki.fragment;trim) @//common:kernel_aarch64; 541s local
+[413 / 422] Building kernel (lto=thin;sukisu_gki.fragment;trim) @//common:kernel_aarch64; 601s local
+[413 / 422] Building kernel (lto=thin;sukisu_gki.fragment;trim) @//common:kernel_aarch64; 661s local
+[413 / 422] Building kernel (lto=thin;sukisu_gki.fragment;trim) @//common:kernel_aarch64; 721s local
+ERROR: /home/runner/work/BruhKernel/BruhKernel/android14-6.1-138/common/BUILD.bazel:139:22: Building kernel (lto=thin;sukisu_gki.fragment;trim) @//common:kernel_aarch64 failed: (Exit 2): bash failed: error executing KernelBuild command (from target //common:kernel_aarch64) 
+  (cd /home/runner/work/BruhKernel/BruhKernel/android14-6.1-138/out/bazel/output_user_root/4fc27fc49d9625b5c9a4128bcf6a1acf/execroot/__main__ && \
+  exec env - \
+  /bin/bash -c '
+        
+         # error on failures
+           set -e
+           set -o pipefail
+    
+                export PATH=$(bazel-out/k8-fastbuild/bin/build/kernel/hermetic-tools/readlink -m bazel-out/k8-fastbuild/bin/build/kernel/hermetic-tools)
+                # Ensure _setup_env.sh keeps the original items in PATH
+                export KLEAF_INTERNAL_BUILDTOOLS_PREBUILT_BIN=bazel-out/k8-fastbuild/bin/build/kernel/hermetic-tools
+
+         # error on failures
+           set -e
+           set -o pipefail
+         # utility functions
+           source build/kernel/build_utils.sh
+         # source the build environment
+           source bazel-out/k8-fastbuild/bin/common/kernel_aarch64_env.sh
+           
+        # Increase parallelism # TODO(b/192655643): do not use -j anymore
+          export MAKEFLAGS="${MAKEFLAGS} -j$(
+            make_jobs="$( (while read -r name value; do if [ "$name" = "MAKE_JOBS" ]; then echo "$value"; fi; done < bazel-out/volatile-status.txt) )"
+            if [[ -n "$make_jobs" ]]; then
+              echo "$make_jobs"
+            else
+              nproc
+            fi
+          )"
+    
+         # setup LD_LIBRARY_PATH for prebuilts
+           export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:${ROOT_DIR}/prebuilts/kernel-build-tools/linux-x86/lib64
+         # Set up KCONFIG_EXT
+           if [ -n "${KCONFIG_EXT}" ]; then
+             export KCONFIG_EXT_PREFIX=$(realpath $(dirname ${KCONFIG_EXT}) --relative-to ${ROOT_DIR}/${KERNEL_DIR})/
+           fi
+           if [ -n "${DTSTREE_MAKEFILE}" ]; then
+             export dtstree=$(realpath -s $(dirname ${DTSTREE_MAKEFILE}) --relative-to ${ROOT_DIR}/${KERNEL_DIR})
+           fi
+         # Set up KCPPFLAGS and KCPPFLAGS_COMPAT
+         # For Kleaf local (non-sandbox) builds, $ROOT_DIR is under execroot but
+         # $ROOT_DIR/$KERNEL_DIR is a symlink to the real source tree under
+         # workspace root, making $abs_srctree not under $ROOT_DIR.
+           if [[ "$(realpath ${ROOT_DIR}/${KERNEL_DIR})" != "${ROOT_DIR}/${KERNEL_DIR}" ]]; then
+             export KCPPFLAGS="$KCPPFLAGS -ffile-prefix-map=$(realpath ${ROOT_DIR}/${KERNEL_DIR})/="
+           fi
+           export KCPPFLAGS_COMPAT="$KCPPFLAGS"
+           
+        
+            KLEAF_CONFIG_TAGS_TMP=$(mktemp kleaf_config_tags.json.XXXXXX)
+            # cache_dir_config_tags.py requires --dest to not exist, otherwise it compares
+            # and fails.
+            rm -f "${KLEAF_CONFIG_TAGS_TMP}"
+
+            # Add label of this target.
+            bazel-out/k8-opt-exec-ST-10ba2ffbdcc7/bin/build/kernel/kleaf/impl/cache_dir_config_tags \
+                --base bazel-out/k8-fastbuild/bin/common/kernel_aarch64_env/common_config_tags.json \
+                --target '\''@//common:kernel_aarch64'\'' \
+                --dest "${KLEAF_CONFIG_TAGS_TMP}"
+
+            export OUT_DIR_SUFFIX=$(cat ${KLEAF_CONFIG_TAGS_TMP} | sha1sum -b | cut -c-8)
+
+            export COMMON_OUT_DIR=/home/runner/work/BruhKernel/BruhKernel/android14-6.1-138/out/cache/${OUT_DIR_SUFFIX}
+            export OUT_DIR=${COMMON_OUT_DIR}/${KERNEL_DIR}
+            mkdir -p "${OUT_DIR}"
+
+            # Reconcile differences between expected file and target file, if any,
+            # to prevent hash collision.
+            bazel-out/k8-opt-exec-ST-10ba2ffbdcc7/bin/build/kernel/kleaf/impl/cache_dir_config_tags \
+                --base "${KLEAF_CONFIG_TAGS_TMP}" \
+                --dest "${COMMON_OUT_DIR}/kleaf_config_tags.json"
+
+            rm -f "${KLEAF_CONFIG_TAGS_TMP}"
+            unset KLEAF_CONFIG_TAGS_TMP
+
+            
+        
+        
+           [ -z ${OUT_DIR} ] && echo "FATAL: configs post_env_info setup run without OUT_DIR set!" >&2 && exit 1
+         # Restore kernel config inputs
+           mkdir -p ${OUT_DIR}/include/
+           rsync -aL bazel-out/k8-fastbuild/bin/common/kernel_aarch64_config/out_dir/.config ${OUT_DIR}/.config
+           rsync -aL --chmod=D+w bazel-out/k8-fastbuild/bin/common/kernel_aarch64_config/out_dir/include/ ${OUT_DIR}/include/
+           rsync -aL --chmod=F+w bazel-out/k8-fastbuild/bin/common/kernel_aarch64_config/localversion ${OUT_DIR}/localversion
+
+         # Restore real value of $ROOT_DIR in auto.conf.cmd
+           sed -i'\'''\'' -e '\''s:${ROOT_DIR}:'\''"${ROOT_DIR}"'\'':g'\'' ${OUT_DIR}/include/config/auto.conf.cmd
+
+           
+           if [[ -f bazel-out/k8-fastbuild/bin/common/kernel_aarch64_config/out_dir/abi_symbollist.raw ]]; then
+                rsync -aL --chmod=F+w \
+                    bazel-out/k8-fastbuild/bin/common/kernel_aarch64_config/out_dir/abi_symbollist.raw ${OUT_DIR}/
+           fi
+        
+    
+    
+           
+         # Actual kernel build
+            make -C ${KERNEL_DIR} ${TOOL_ARGS} O=${OUT_DIR} Image Image.lz4 Image.gz modules
+         # Install modules
+           
+         # Set variables and create dirs for modules
+           mkdir -p bazel-out/k8-fastbuild/bin/common/kernel_aarch64/staging
+         # Install modules
+           if grep -q "\bmodules\b" <<< "Image Image.lz4 Image.gz modules" ; then
+               make -C ${KERNEL_DIR} ${TOOL_ARGS} DEPMOD=true O=${OUT_DIR} INSTALL_MOD_STRIP=1 INSTALL_MOD_PATH=$(realpath bazel-out/k8-fastbuild/bin/common/kernel_aarch64/staging) modules_install
+           else
+               # Workaround as this file is required, hence just produce a placeholder.
+               touch ${OUT_DIR}/Module.symvers ${OUT_DIR}/include/config/kernel.release
+           fi
+    
+         # Archive headers in OUT_DIR
+           find ${OUT_DIR} -name *.h -print0                                         | tar czf bazel-out/k8-fastbuild/bin/common/kernel_aarch64/out-dir-kernel-headers.tar.gz                                          --absolute-names                                                        --dereference                                                           --transform "s,.*$OUT_DIR,,"                                            --transform "s,^/,,"                                                    --null -T -
+         # Grab outputs. If unable to find from OUT_DIR, look at KBUILD_MIXED_TREE as well.
+           bazel-out/k8-opt-exec-ST-10ba2ffbdcc7/bin/build/kernel/kleaf/search_and_cp_output --srcdir ${OUT_DIR}  --srcdir ${OUT_DIR}/${dtstree} --dstdir bazel-out/k8-fastbuild/bin/common/kernel_aarch64 System.map modules.builtin modules.builtin.modinfo vmlinux vmlinux.symvers Image Image.lz4 Image.gz scripts/sign-file certs/signing_key.pem certs/signing_key.x509 Module.symvers include/config/kernel.release
+         # Archive modules_staging_dir
+           tar czf bazel-out/k8-fastbuild/bin/common/kernel_aarch64/modules_staging_dir.tar.gz -C bazel-out/k8-fastbuild/bin/common/kernel_aarch64/staging .
+         # Grab *.symtypes
+           
+         # Grab *.gcno files
+           
+         # Grab *.cmd
+           
+         # Grab files for compile_commands.json
+           
+         # Grab GDB scripts
+           
+         # Grab * files
+           
+         # Grab in-tree modules
+           
+            bazel-out/k8-opt-exec-ST-10ba2ffbdcc7/bin/build/kernel/kleaf/search_and_cp_output --srcdir bazel-out/k8-fastbuild/bin/common/kernel_aarch64/staging/lib/modules/*/kernel --dstdir bazel-out/k8-fastbuild/bin/common/kernel_aarch64 $(cat bazel-out/k8-fastbuild/bin/common/kernel_aarch64_all_module_names/kernel_aarch64_modules)
+        
+         # Grab unstripped in-tree modules
+           
+                mkdir -p bazel-out/k8-fastbuild/bin/common/kernel_aarch64/unstripped
+                bazel-out/k8-opt-exec-ST-10ba2ffbdcc7/bin/build/kernel/kleaf/search_and_cp_output --srcdir ${OUT_DIR} --dstdir bazel-out/k8-fastbuild/bin/common/kernel_aarch64/unstripped $(cat bazel-out/k8-fastbuild/bin/common/kernel_aarch64_all_module_names/all_module_basenames.txt)
+            
+         # Make a copy of Module.symvers
+           
+           cp -f ${OUT_DIR}/Module.symvers bazel-out/k8-fastbuild/bin/common/kernel_aarch64/kernel_aarch64_Module.symvers
+        
+           if grep -q "\bmodules\b" <<< "Image Image.lz4 Image.gz modules"; then
+             # Check if there are remaining *.ko files
+               
+           remaining_ko_files=$(bazel-out/k8-opt-exec-ST-10ba2ffbdcc7/bin/build/kernel/kleaf/check_declared_output_list \
+                --declared $(cat bazel-out/k8-fastbuild/bin/common/kernel_aarch64_all_module_names/kernel_aarch64_modules ) \
+                --actual $(cd bazel-out/k8-fastbuild/bin/common/kernel_aarch64/staging/lib/modules/*/kernel && find . -type f -name '\''*.ko'\'' | sed '\''s:^[.]/::'\''))
+           if [[ ${remaining_ko_files} ]]; then
+             echo "ERROR: The following kernel modules are built but not copied. Add these lines to the module_outs attribute of @//common:kernel_aarch64:" >&2
+             for ko in ${remaining_ko_files}; do
+               echo '\''    "'\''"${ko}"'\''",'\'' >&2
+             done
+             echo "Alternatively, install buildozer and execute:" >&2
+             echo "  $ buildozer '\''add module_outs ${remaining_ko_files}'\'' @//common:kernel_aarch64" >&2
+             echo "See https://github.com/bazelbuild/buildtools/blob/master/buildozer/README.md for reference" >&2
+             exit 1
+           fi
+    
+           fi
+         # Clean up staging directories
+           rm -rf bazel-out/k8-fastbuild/bin/common/kernel_aarch64/staging
+         # Create last_build symlink in cache_dir
+           
+            ln -sfT ${OUT_DIR_SUFFIX} /home/runner/work/BruhKernel/BruhKernel/android14-6.1-138/out/cache/last_build
+            
+        
+         ')
+# Configuration: bc32e6f1144cea50d2243b572fdfccd636b01de88f2406b78412231910ab4adf
+# Execution platform: @local_config_platform//:host
+ld.lld: error: undefined symbol: ksu_handle_rename
+>>> referenced by lsm_hooks.c:66 (drivers/kernelsu/hook/lsm_hooks.c:66)
+>>>               vmlinux.o:(ksu_inode_rename)
+pahole: .tmp_vmlinux.btf: No such file or directory
+ld.lld: error: .btf.vmlinux.bin.o: unknown file type
+make[2]: *** [/home/runner/work/BruhKernel/BruhKernel/android14-6.1-138/common/scripts/Makefile.vmlinux:34: vmlinux] Error 1
+make[1]: *** [/home/runner/work/BruhKernel/BruhKernel/android14-6.1-138/common/Makefile:1321: vmlinux] Error 2
+make: *** [Makefile:256: __sub-make] Error 2
+-- Baseband-guard: flask.h found, skip generation
+-- Baseband-guard/compat: found file_ioctl_compat
+-- Baseband-guard/compat: found selinux_state
+-- Baseband-guard/compat: found modern block device api
+-- Baseband-guard: CONFIG_BBG enabled, now checking...
+-- Kernel Version: 6.1
+-- Baseband_guard: Found DEFINE_LSM,now checking CONFIG_LSM...
+-- CONFIG_LSM value: landlock,lockdown,baseband_guard,yama,loadpin,safesetid,integrity,selinux,smack,tomoyo,apparmor,bpf
+-- Baseband-guard: Okay, Baseband_guard was found in CONFIG_LSM
+-- BBG was enabled!
+-- BBG version: a54e0dc6
+-- BBG repo: https://github.com/vc-teahouse/Baseband-guard
+kernel: Checking config_data for CONFIG_IP6_NF_NAT...
+kernel: Warning: Unexpected CONFIG_IP6_NF_NAT value found
+# CONFIG_IP6_NF_NAT is not set
+kernel: Final CONFIG_IP6_NF_NAT value in config_data: 
+# CONFIG_IP6_NF_NAT is not set
+-- ReSukiSU version code: 30800
+-- ReSukiSU version name: v4.1.0-e00751e5-dirty@ReSukiSU
+-- KERNEL_VERSION: 6.1
+-- KERNEL_TYPE: GKI 2.0
+-- ReSukiSU: using SuSFS Inline hook
+-- You are using SUSFS, if you face any issues, please MAKE SURE you are using LATEST SUSFS KERNEL SIDE before submit issue to ReSukiSU.
+-- We keep tracking simonpunk's latest changes, and don't maintain ANY backward compatibility for old version of susfs.
+-- ReSukiSU/susfs_inline: ksu_handle_setresuid found
+-- ReSukiSU/susfs_inline: ksu_handle_execveat found
+-- ReSukiSU/susfs_inline: ksu_handle_faccessat found
+-- ReSukiSU/susfs_inline: ksu_handle_sys_read found
+-- ReSukiSU/susfs_inline: ksu_handle_stat found
+-- ReSukiSU/susfs_inline: ksu_handle_sys_reboot found
+-- ReSukiSU/susfs_inline: ksu_handle_input_handle_event found
+-- ReSukiSU/susfs_feature_check: selinux_hide manual hook found
+
+-- SUSFS_VERSION: v2.3.0
+-- ReSukiSU/compat: current_sid found
+-- ReSukiSU/compat: selinux_state found
+-- ReSukiSU/compat: strncpy found
+-- ReSukiSU/compat: kernel_read found
+-- ReSukiSU/compat: kernel_write found
+-- ReSukiSU/compat: selinux_inode found
+-- ReSukiSU/compat: selinux_cred found
+-- ReSukiSU/compat: seccomp_filter_count found
+-- ReSukiSU/compat: put_seccomp_filter found
+-- ReSukiSU/compat: security_inode_init_security_anon found
+-- ReSukiSU/compat: anon_inode_getfd_secure found
+-- ReSukiSU/compat: file_inode() found
+-- ReSukiSU/compat: __flush_dcache_area not found
+-- ReSukiSU/compat: policy_mutex found
+-- ReSukiSU/compat: ns_get_path found
+-- ReSukiSU/compat: modern dentry_open found
+-- ReSukiSU/compat: ext4_unregister_sysfs found
+-- ReSukiSU/compat: f_op->read_iter found
+-- ReSukiSU/compat: iterate_dir found
+-- ReSukiSU/compat: modern static_key_interface found
+-- ReSukiSU/compat: d_inode found
+-- ReSukiSU/compat: inode_lock found
+-- ReSukiSU/compat: modern errno file found
+-- ReSukiSU/compat: minmax.h found
+-- ReSukiSU/compat: overflow.h found
+-- ReSukiSU/compat: modern proc ns header file found
+-- ReSukiSU/compat: android spec POLICYDB_CONFIG_ANDROID_NETLINK_ROUTE found!!
+-- ReSukiSU/compat: android spec POLICYDB_CONFIG_ANDROID_NETLINK_GETNEIGH found!!
+-- ReSukiSU/compat: found modern selinux policydb
+-- ReSukiSU/compat: found sidtab as reference
+-- ReSukiSU/compat: found hlist in security_hook_list
+-- ReSukiSU/compat: found required provide lsm name
+-- ReSukiSU/compat: found selinux status variables in selinux_state
+-- ReSukiSU/compat: found selinux_policy struct
+-- ReSukiSU/compat: found hashtabs is a struct instead of pointer
+-- ReSukiSU/compat: found symtab_search function
+-- ReSukiSU/compat: found hashtab_key_params function
+-- ReSukiSU/compat: found filename_trans_key function
+-- ReSukiSU/compat: found security_add_hooks
+-- ReSukiSU/compat: ksu_handle_post_execve hook not found
+-- ReSukiSU/compat: key need perm as enum found
+-- ReSukiSU/compat: modern dentry_open found
+-- Baseband-guard: flask.h found, skip generation
+-- Baseband-guard/compat: found file_ioctl_compat
+kernel: Checking config_data for CONFIG_IP6_NF_NAT...
+-- Baseband-guard/compat: found selinux_state
+-- Baseband-guard/compat: found modern block device api
+-- Baseband-guard: CONFIG_BBG enabled, now checking...
+-- Kernel Version: 6.1
+-- Baseband_guard: Found DEFINE_LSM,now checking CONFIG_LSM...
+-- CONFIG_LSM value: landlock,lockdown,baseband_guard,yama,loadpin,safesetid,integrity,selinux,smack,tomoyo,apparmor,bpf
+-- Baseband-guard: Okay, Baseband_guard was found in CONFIG_LSM
+-- BBG was enabled!
+-- BBG version: a54e0dc6
+-- BBG repo: https://github.com/vc-teahouse/Baseband-guard
+kernel: Warning: Unexpected CONFIG_IP6_NF_NAT value found
+# CONFIG_IP6_NF_NAT is not set
+kernel: Final CONFIG_IP6_NF_NAT value in config_data: 
+# CONFIG_IP6_NF_NAT is not set
+-- ReSukiSU version code: 30800
+-- ReSukiSU version name: v4.1.0-e00751e5-dirty@ReSukiSU
+-- KERNEL_VERSION: 6.1
+-- KERNEL_TYPE: GKI 2.0
+-- ReSukiSU: using SuSFS Inline hook
+-- You are using SUSFS, if you face any issues, please MAKE SURE you are using LATEST SUSFS KERNEL SIDE before submit issue to ReSukiSU.
+-- We keep tracking simonpunk's latest changes, and don't maintain ANY backward compatibility for old version of susfs.
+-- ReSukiSU/susfs_inline: ksu_handle_setresuid found
+-- ReSukiSU/susfs_inline: ksu_handle_execveat found
+-- ReSukiSU/susfs_inline: ksu_handle_faccessat found
+-- ReSukiSU/susfs_inline: ksu_handle_sys_read found
+-- ReSukiSU/susfs_inline: ksu_handle_stat found
+-- ReSukiSU/susfs_inline: ksu_handle_sys_reboot found
+-- ReSukiSU/susfs_inline: ksu_handle_input_handle_event found
+-- ReSukiSU/susfs_feature_check: selinux_hide manual hook found
+
+-- SUSFS_VERSION: v2.3.0
+-- ReSukiSU/compat: current_sid found
+-- ReSukiSU/compat: selinux_state found
+-- ReSukiSU/compat: strncpy found
+-- ReSukiSU/compat: kernel_read found
+-- ReSukiSU/compat: kernel_write found
+-- ReSukiSU/compat: selinux_inode found
+-- ReSukiSU/compat: selinux_cred found
+-- ReSukiSU/compat: seccomp_filter_count found
+-- ReSukiSU/compat: put_seccomp_filter found
+-- ReSukiSU/compat: security_inode_init_security_anon found
+-- ReSukiSU/compat: anon_inode_getfd_secure found
+-- ReSukiSU/compat: file_inode() found
+-- ReSukiSU/compat: __flush_dcache_area not found
+-- ReSukiSU/compat: policy_mutex found
+-- ReSukiSU/compat: ns_get_path found
+-- ReSukiSU/compat: modern dentry_open found
+-- ReSukiSU/compat: ext4_unregister_sysfs found
+-- ReSukiSU/compat: f_op->read_iter found
+-- ReSukiSU/compat: iterate_dir found
+-- ReSukiSU/compat: modern static_key_interface found
+-- ReSukiSU/compat: d_inode found
+-- ReSukiSU/compat: inode_lock found
+-- ReSukiSU/compat: modern errno file found
+-- ReSukiSU/compat: minmax.h found
+-- ReSukiSU/compat: overflow.h found
+-- ReSukiSU/compat: modern proc ns header file found
+-- ReSukiSU/compat: android spec POLICYDB_CONFIG_ANDROID_NETLINK_ROUTE found!!
+-- ReSukiSU/compat: android spec POLICYDB_CONFIG_ANDROID_NETLINK_GETNEIGH found!!
+-- ReSukiSU/compat: found modern selinux policydb
+-- ReSukiSU/compat: found sidtab as reference
+-- ReSukiSU/compat: found hlist in security_hook_list
+-- ReSukiSU/compat: found required provide lsm name
+-- ReSukiSU/compat: found selinux status variables in selinux_state
+-- ReSukiSU/compat: found selinux_policy struct
+-- ReSukiSU/compat: found hashtabs is a struct instead of pointer
+-- ReSukiSU/compat: found symtab_search function
+-- ReSukiSU/compat: found hashtab_key_params function
+-- ReSukiSU/compat: found filename_trans_key function
+-- ReSukiSU/compat: found security_add_hooks
+-- ReSukiSU/compat: ksu_handle_post_execve hook not found
+-- ReSukiSU/compat: key need perm as enum found
+-- ReSukiSU/compat: modern dentry_open found
+[414 / 422] checking cached actions
+Target //common:kernel_aarch64_dist failed to build
+ERROR: /home/runner/work/BruhKernel/BruhKernel/android14-6.1-138/common/BUILD.bazel:139:22 Middleman _middlemen/common_Skernel_Uaarch64_Udist-runfiles failed: (Exit 2): bash failed: error executing KernelBuild command (from target //common:kernel_aarch64) 
+  (cd /home/runner/work/BruhKernel/BruhKernel/android14-6.1-138/out/bazel/output_user_root/4fc27fc49d9625b5c9a4128bcf6a1acf/execroot/__main__ && \
+  exec env - \
+  /bin/bash -c '
+        
+         # error on failures
+           set -e
+           set -o pipefail
+    
+                export PATH=$(bazel-out/k8-fastbuild/bin/build/kernel/hermetic-tools/readlink -m bazel-out/k8-fastbuild/bin/build/kernel/hermetic-tools)
+                # Ensure _setup_env.sh keeps the original items in PATH
+                export KLEAF_INTERNAL_BUILDTOOLS_PREBUILT_BIN=bazel-out/k8-fastbuild/bin/build/kernel/hermetic-tools
+
+         # error on failures
+           set -e
+           set -o pipefail
+         # utility functions
+           source build/kernel/build_utils.sh
+         # source the build environment
+           source bazel-out/k8-fastbuild/bin/common/kernel_aarch64_env.sh
+           
+        # Increase parallelism # TODO(b/192655643): do not use -j anymore
+          export MAKEFLAGS="${MAKEFLAGS} -j$(
+            make_jobs="$( (while read -r name value; do if [ "$name" = "MAKE_JOBS" ]; then echo "$value"; fi; done < bazel-out/volatile-status.txt) )"
+            if [[ -n "$make_jobs" ]]; then
+              echo "$make_jobs"
+            else
+              nproc
+            fi
+          )"
+    
+         # setup LD_LIBRARY_PATH for prebuilts
+           export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:${ROOT_DIR}/prebuilts/kernel-build-tools/linux-x86/lib64
+         # Set up KCONFIG_EXT
+           if [ -n "${KCONFIG_EXT}" ]; then
+             export KCONFIG_EXT_PREFIX=$(realpath $(dirname ${KCONFIG_EXT}) --relative-to ${ROOT_DIR}/${KERNEL_DIR})/
+           fi
+           if [ -n "${DTSTREE_MAKEFILE}" ]; then
+             export dtstree=$(realpath -s $(dirname ${DTSTREE_MAKEFILE}) --relative-to ${ROOT_DIR}/${KERNEL_DIR})
+           fi
+         # Set up KCPPFLAGS and KCPPFLAGS_COMPAT
+         # For Kleaf local (non-sandbox) builds, $ROOT_DIR is under execroot but
+         # $ROOT_DIR/$KERNEL_DIR is a symlink to the real source tree under
+         # workspace root, making $abs_srctree not under $ROOT_DIR.
+           if [[ "$(realpath ${ROOT_DIR}/${KERNEL_DIR})" != "${ROOT_DIR}/${KERNEL_DIR}" ]]; then
+             export KCPPFLAGS="$KCPPFLAGS -ffile-prefix-map=$(realpath ${ROOT_DIR}/${KERNEL_DIR})/="
+           fi
+           export KCPPFLAGS_COMPAT="$KCPPFLAGS"
+           
+        
+            KLEAF_CONFIG_TAGS_TMP=$(mktemp kleaf_config_tags.json.XXXXXX)
+            # cache_dir_config_tags.py requires --dest to not exist, otherwise it compares
+            # and fails.
+            rm -f "${KLEAF_CONFIG_TAGS_TMP}"
+
+            # Add label of this target.
+            bazel-out/k8-opt-exec-ST-10ba2ffbdcc7/bin/build/kernel/kleaf/impl/cache_dir_config_tags \
+                --base bazel-out/k8-fastbuild/bin/common/kernel_aarch64_env/common_config_tags.json \
+                --target '\''@//common:kernel_aarch64'\'' \
+                --dest "${KLEAF_CONFIG_TAGS_TMP}"
+
+            export OUT_DIR_SUFFIX=$(cat ${KLEAF_CONFIG_TAGS_TMP} | sha1sum -b | cut -c-8)
+
+            export COMMON_OUT_DIR=/home/runner/work/BruhKernel/BruhKernel/android14-6.1-138/out/cache/${OUT_DIR_SUFFIX}
+            export OUT_DIR=${COMMON_OUT_DIR}/${KERNEL_DIR}
+            mkdir -p "${OUT_DIR}"
+
+            # Reconcile differences between expected file and target file, if any,
+            # to prevent hash collision.
+            bazel-out/k8-opt-exec-ST-10ba2ffbdcc7/bin/build/kernel/kleaf/impl/cache_dir_config_tags \
+                --base "${KLEAF_CONFIG_TAGS_TMP}" \
+                --dest "${COMMON_OUT_DIR}/kleaf_config_tags.json"
+
+            rm -f "${KLEAF_CONFIG_TAGS_TMP}"
+            unset KLEAF_CONFIG_TAGS_TMP
+
+            
+        
+        
+           [ -z ${OUT_DIR} ] && echo "FATAL: configs post_env_info setup run without OUT_DIR set!" >&2 && exit 1
+         # Restore kernel config inputs
+           mkdir -p ${OUT_DIR}/include/
+           rsync -aL bazel-out/k8-fastbuild/bin/common/kernel_aarch64_config/out_dir/.config ${OUT_DIR}/.config
+           rsync -aL --chmod=D+w bazel-out/k8-fastbuild/bin/common/kernel_aarch64_config/out_dir/include/ ${OUT_DIR}/include/
+           rsync -aL --chmod=F+w bazel-out/k8-fastbuild/bin/common/kernel_aarch64_config/localversion ${OUT_DIR}/localversion
+
+         # Restore real value of $ROOT_DIR in auto.conf.cmd
+           sed -i'\'''\'' -e '\''s:${ROOT_DIR}:'\''"${ROOT_DIR}"'\'':g'\'' ${OUT_DIR}/include/config/auto.conf.cmd
+
+           
+           if [[ -f bazel-out/k8-fastbuild/bin/common/kernel_aarch64_config/out_dir/abi_symbollist.raw ]]; then
+                rsync -aL --chmod=F+w \
+                    bazel-out/k8-fastbuild/bin/common/kernel_aarch64_config/out_dir/abi_symbollist.raw ${OUT_DIR}/
+           fi
+        
+    
+    
+           
+         # Actual kernel build
+            make -C ${KERNEL_DIR} ${TOOL_ARGS} O=${OUT_DIR} Image Image.lz4 Image.gz modules
+         # Install modules
+           
+         # Set variables and create dirs for modules
+           mkdir -p bazel-out/k8-fastbuild/bin/common/kernel_aarch64/staging
+         # Install modules
+           if grep -q "\bmodules\b" <<< "Image Image.lz4 Image.gz modules" ; then
+               make -C ${KERNEL_DIR} ${TOOL_ARGS} DEPMOD=true O=${OUT_DIR} INSTALL_MOD_STRIP=1 INSTALL_MOD_PATH=$(realpath bazel-out/k8-fastbuild/bin/common/kernel_aarch64/staging) modules_install
+           else
+               # Workaround as this file is required, hence just produce a placeholder.
+               touch ${OUT_DIR}/Module.symvers ${OUT_DIR}/include/config/kernel.release
+           fi
+    
+         # Archive headers in OUT_DIR
+           find ${OUT_DIR} -name *.h -print0                                         | tar czf bazel-out/k8-fastbuild/bin/common/kernel_aarch64/out-dir-kernel-headers.tar.gz                                          --absolute-names                                                        --dereference                                                           --transform "s,.*$OUT_DIR,,"                                            --transform "s,^/,,"                                                    --null -T -
+         # Grab outputs. If unable to find from OUT_DIR, look at KBUILD_MIXED_TREE as well.
+           bazel-out/k8-opt-exec-ST-10ba2ffbdcc7/bin/build/kernel/kleaf/search_and_cp_output --srcdir ${OUT_DIR}  --srcdir ${OUT_DIR}/${dtstree} --dstdir bazel-out/k8-fastbuild/bin/common/kernel_aarch64 System.map modules.builtin modules.builtin.modinfo vmlinux vmlinux.symvers Image Image.lz4 Image.gz scripts/sign-file certs/signing_key.pem certs/signing_key.x509 Module.symvers include/config/kernel.release
+         # Archive modules_staging_dir
+           tar czf bazel-out/k8-fastbuild/bin/common/kernel_aarch64/modules_staging_dir.tar.gz -C bazel-out/k8-fastbuild/bin/common/kernel_aarch64/staging .
+         # Grab *.symtypes
+           
+         # Grab *.gcno files
+           
+         # Grab *.cmd
+           
+         # Grab files for compile_commands.json
+           
+         # Grab GDB scripts
+           
+         # Grab * files
+           
+         # Grab in-tree modules
+           
+            bazel-out/k8-opt-exec-ST-10ba2ffbdcc7/bin/build/kernel/kleaf/search_and_cp_output --srcdir bazel-out/k8-fastbuild/bin/common/kernel_aarch64/staging/lib/modules/*/kernel --dstdir bazel-out/k8-fastbuild/bin/common/kernel_aarch64 $(cat bazel-out/k8-fastbuild/bin/common/kernel_aarch64_all_module_names/kernel_aarch64_modules)
+        
+         # Grab unstripped in-tree modules
+           
+                mkdir -p bazel-out/k8-fastbuild/bin/common/kernel_aarch64/unstripped
+                bazel-out/k8-opt-exec-ST-10ba2ffbdcc7/bin/build/kernel/kleaf/search_and_cp_output --srcdir ${OUT_DIR} --dstdir bazel-out/k8-fastbuild/bin/common/kernel_aarch64/unstripped $(cat bazel-out/k8-fastbuild/bin/common/kernel_aarch64_all_module_names/all_module_basenames.txt)
+            
+         # Make a copy of Module.symvers
+           
+           cp -f ${OUT_DIR}/Module.symvers bazel-out/k8-fastbuild/bin/common/kernel_aarch64/kernel_aarch64_Module.symvers
+        
+           if grep -q "\bmodules\b" <<< "Image Image.lz4 Image.gz modules"; then
+             # Check if there are remaining *.ko files
+               
+           remaining_ko_files=$(bazel-out/k8-opt-exec-ST-10ba2ffbdcc7/bin/build/kernel/kleaf/check_declared_output_list \
+                --declared $(cat bazel-out/k8-fastbuild/bin/common/kernel_aarch64_all_module_names/kernel_aarch64_modules ) \
+                --actual $(cd bazel-out/k8-fastbuild/bin/common/kernel_aarch64/staging/lib/modules/*/kernel && find . -type f -name '\''*.ko'\'' | sed '\''s:^[.]/::'\''))
+           if [[ ${remaining_ko_files} ]]; then
+             echo "ERROR: The following kernel modules are built but not copied. Add these lines to the module_outs attribute of @//common:kernel_aarch64:" >&2
+             for ko in ${remaining_ko_files}; do
+               echo '\''    "'\''"${ko}"'\''",'\'' >&2
+             done
+             echo "Alternatively, install buildozer and execute:" >&2
+             echo "  $ buildozer '\''add module_outs ${remaining_ko_files}'\'' @//common:kernel_aarch64" >&2
+             echo "See https://github.com/bazelbuild/buildtools/blob/master/buildozer/README.md for reference" >&2
+             exit 1
+           fi
+    
+           fi
+         # Clean up staging directories
+           rm -rf bazel-out/k8-fastbuild/bin/common/kernel_aarch64/staging
+         # Create last_build symlink in cache_dir
+           
+            ln -sfT ${OUT_DIR_SUFFIX} /home/runner/work/BruhKernel/BruhKernel/android14-6.1-138/out/cache/last_build
+            
+        
+         ')
+# Configuration: bc32e6f1144cea50d2243b572fdfccd636b01de88f2406b78412231910ab4adf
+# Execution platform: @local_config_platform//:host
+INFO: Elapsed time: 768.964s, Critical Path: 750.38s
+INFO: 414 processes: 396 internal, 2 local, 16 processwrapper-sandbox.
+ERROR: Build did NOT complete successfully
