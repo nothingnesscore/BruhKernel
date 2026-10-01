@@ -157,10 +157,6 @@ on:
         description: "Add SUSFS"
         type: boolean
         default: true
-      add_nomount:
-        description: "Add NoMount VFS Redirection"
-        type: boolean
-        default: true
       add_zram:
         description: "Add ZRAM with LZ4K"
         type: boolean
@@ -193,9 +189,6 @@ on:
         type: string
         default: "All"
       add_susfs:
-        type: boolean
-        default: true
-      add_nomount:
         type: boolean
         default: true
       add_zram:
@@ -448,7 +441,6 @@ jobs:
       sub_level: ${{ needs.resolve.outputs.sub_level }}
       os_patch_level: ${{ needs.resolve.outputs.os_patch_level }}
       add_susfs: true
-      add_nomount: ${{ github.event_name == 'push' || inputs.add_nomount }}
       add_zram: true
       add_bbg: true
       add_overlayfs_support: true
@@ -465,7 +457,6 @@ jobs:
       sub_level: ${{ needs.resolve.outputs.sub_level }}
       os_patch_level: ${{ needs.resolve.outputs.os_patch_level }}
       add_susfs: true
-      add_nomount: ${{ github.event_name == 'push' || inputs.add_nomount }}
       add_zram: true
       add_bbg: true
       add_overlayfs_support: true
@@ -482,7 +473,6 @@ jobs:
       sub_level: ${{ needs.resolve.outputs.sub_level }}
       os_patch_level: ${{ needs.resolve.outputs.os_patch_level }}
       add_susfs: true
-      add_nomount: ${{ github.event_name == 'push' || inputs.add_nomount }}
       add_zram: true
       add_bbg: true
       add_overlayfs_support: true
@@ -499,7 +489,6 @@ jobs:
       sub_level: ${{ needs.resolve.outputs.sub_level }}
       os_patch_level: ${{ needs.resolve.outputs.os_patch_level }}
       add_susfs: true
-      add_nomount: ${{ github.event_name == 'push' || inputs.add_nomount }}
       add_zram: true
       add_bbg: true
       add_overlayfs_support: true

@@ -34,7 +34,7 @@ jobs:
           fetch-depth: 0
           token: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Check KSU Upstreams & NoMount
+      - name: Check KSU Upstreams 
         id: check
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -89,28 +89,6 @@ jobs:
             check_upstream "WKSU" "WildKernels/Wild_KSU" "canary" "wksu-pin.txt"
           fi
 
-          echo "=== Checking NoMount upstream (maxsteeel/nomount @ dev) ==="
-          NOMOUNT_SHA=$(curl -s "https://api.github.com/repos/maxsteeel/nomount/commits/dev" | jq -r '.sha // empty')
-          if [ -n "$NOMOUNT_SHA" ] && [ "$NOMOUNT_SHA" != "null" ]; then
-            echo "Remote NoMount SHA: $NOMOUNT_SHA"
-            mkdir -p /tmp/nomount_upstream
-            curl -sL "https://raw.githubusercontent.com/maxsteeel/nomount/dev/kernel/src/nomount.c" -o /tmp/nomount_upstream/nomount.c
-            curl -sL "https://raw.githubusercontent.com/maxsteeel/nomount/dev/kernel/src/nomount.h" -o /tmp/nomount_upstream/nomount.h
-            if [ -s /tmp/nomount_upstream/nomount.c ] && [ -s /tmp/nomount_upstream/nomount.h ]; then
-              if ! cmp -s /tmp/nomount_upstream/nomount.c "$VERSION_DIR/nomount_src/nomount.c" || ! cmp -s /tmp/nomount_upstream/nomount.h "$VERSION_DIR/nomount_src/nomount.h"; then
-                echo "✨ Upstream NoMount code changes detected. Syncing into $VERSION_DIR/nomount_src/..."
-                cp /tmp/nomount_upstream/nomount.c "$VERSION_DIR/nomount_src/nomount.c"
-                cp /tmp/nomount_upstream/nomount.h "$VERSION_DIR/nomount_src/nomount.h"
-                UPDATED_FLAVOURS="$UPDATED_FLAVOURS NoMount"
-              fi
-            fi
-          fi
-
-          UPDATED_FLAVOURS=$(echo "$UPDATED_FLAVOURS" | xargs)
-          echo "updated_flavours=$UPDATED_FLAVOURS" >> "$GITHUB_OUTPUT"
-
-          if [ -n "$UPDATED_FLAVOURS" ]; then
-            git add "$VERSION_DIR/"
             git commit -m "chore(upstream): update KSU/NoMount pins ($UPDATED_FLAVOURS)" || true
             git push origin main || true
             echo "Pushed updated pins to main."
@@ -131,7 +109,7 @@ jobs:
               -f kernel_target="android14-6.1.138 (2025-06)" \
               -f ksu_variant="$TARGET_KSU" \
               -f add_susfs=true \
-              -f add_nomount=true \
+              -f=true \
               -f add_zram=true \
               -f add_overlayfs_support=true
             echo "Build dispatched successfully for $TARGET_KSU!"

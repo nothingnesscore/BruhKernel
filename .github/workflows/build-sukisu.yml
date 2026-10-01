@@ -22,9 +22,6 @@ on:
       add_susfs:
         type: boolean
         default: true
-      add_nomount:
-        type: boolean
-        default: true
       add_zram:
         type: boolean
         default: true
@@ -239,29 +236,6 @@ jobs:
           cp -r "$KERNEL_ROOT/$KSU_DIR/uapi" "$KERNEL_ROOT/common/drivers/uapi" 2>/dev/null || true
           echo "[+] Synced $KSU_DIR/uapi to common/drivers"
         fi
-
-    - name: Integrate NoMount
-      working-directory: ${{ env.KERNEL_ROOT }}/common
-      run: |
-        NM_SRC="$GITHUB_WORKSPACE/$VERSION_DIR/nomount_src"
-        if [ -d "$NM_SRC" ]; then
-          echo "[+] Integrating NoMount into kernel source..."
-          mkdir -p fs/nomount
-          cp -f "$NM_SRC"/* fs/nomount/
-          if ! grep -q "nomount" fs/Makefile; then
-            printf "\nobj-\$(CONFIG_NOMOUNT) += nomount/\n" >> fs/Makefile
-          fi
-          if ! grep -q 'source "fs/nomount/Kconfig"' fs/Kconfig; then
-            sed -i '/endmenu/i source "fs/nomount/Kconfig"' fs/Kconfig
-          fi
-          echo "[OK] NoMount source integrated."
-        fi
-
-    - name: Apply NoMount Patch (zeromount compatibility layer)
-      if: inputs.add_nomount && inputs.add_susfs
-      working-directory: ${{ env.KERNEL_ROOT }}/common
-      run: |
-        patch -p1 -F3 --no-backup-if-mismatch < "$GITHUB_WORKSPACE/$VERSION_DIR/SukiSU-Ultra/patches/60_zeromount-${ANDROID_VER}-${KERNEL_VER}.patch"
 
     - name: Fix SUSFS Compatibility
       if: inputs.add_susfs
@@ -545,7 +519,6 @@ jobs:
       if: always()
       env:
         ADD_SUSFS: ${{ inputs.add_susfs }}
-        ADD_NOMOUNT: ${{ inputs.add_nomount }}
         ADD_ZRAM: ${{ inputs.add_zram }}
         ADD_BBG: ${{ inputs.add_bbg }}
         ADD_OVERLAYFS: ${{ inputs.add_overlayfs_support }}
@@ -561,7 +534,6 @@ jobs:
           echo "| **Android** | ${ANDROID_VER} |"
           echo "| **OS Patch Level** | ${OS_PATCH} |"
           echo "| **Enhanced SUSFS** | $(S "$ADD_SUSFS") |"
-          echo "| **NoMount** | $(S "$ADD_NOMOUNT") |"
           echo "| **ZRAM (LZ4K/LZ4KD)** | $(S "$ADD_ZRAM") |"
           echo "| **LZ4 v1.10.0** | $(S "$ADD_ZRAM") |"
           echo "| **Overlayfs Support** | $(S "$ADD_OVERLAYFS") |"

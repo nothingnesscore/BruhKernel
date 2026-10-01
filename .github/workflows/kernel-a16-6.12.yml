@@ -22,10 +22,6 @@ on:
         description: "Add Enhanced SUSFS"
         type: boolean
         default: true
-      add_nomount:
-        description: "Add NoMount VFS Redirection"
-        type: boolean
-        default: true
       add_zram:
         description: "Add ZRAM with LZ4K/LZ4KD"
         type: boolean
@@ -59,9 +55,6 @@ on:
         type: string
         default: "SukiSU"
       add_susfs:
-        type: boolean
-        default: true
-      add_nomount:
         type: boolean
         default: true
       add_zram:
@@ -114,7 +107,6 @@ jobs:
       sub_level: ${{ matrix.sub_level }}
       os_patch_level: ${{ matrix.os_patch_level }}
       add_susfs: ${{ inputs.add_susfs }}
-      add_nomount: ${{ inputs.add_nomount }}
       add_zram: ${{ inputs.add_zram }}
       add_bbg: ${{ inputs.add_bbg }}
       add_overlayfs_support: ${{ inputs.add_overlayfs_support }}
@@ -146,7 +138,6 @@ jobs:
       sub_level: ${{ matrix.sub_level }}
       os_patch_level: ${{ matrix.os_patch_level }}
       add_susfs: ${{ inputs.add_susfs }}
-      add_nomount: ${{ inputs.add_nomount }}
       add_zram: ${{ inputs.add_zram }}
       add_bbg: ${{ inputs.add_bbg }}
       add_overlayfs_support: ${{ inputs.add_overlayfs_support }}
@@ -178,7 +169,6 @@ jobs:
       sub_level: ${{ matrix.sub_level }}
       os_patch_level: ${{ matrix.os_patch_level }}
       add_susfs: ${{ inputs.add_susfs }}
-      add_nomount: ${{ inputs.add_nomount }}
       add_zram: ${{ inputs.add_zram }}
       add_bbg: ${{ inputs.add_bbg }}
       add_overlayfs_support: ${{ inputs.add_overlayfs_support }}
@@ -210,7 +200,6 @@ jobs:
       sub_level: ${{ matrix.sub_level }}
       os_patch_level: ${{ matrix.os_patch_level }}
       add_susfs: ${{ inputs.add_susfs }}
-      add_nomount: ${{ inputs.add_nomount }}
       add_zram: ${{ inputs.add_zram }}
       add_bbg: ${{ inputs.add_bbg }}
       add_overlayfs_support: ${{ inputs.add_overlayfs_support }}

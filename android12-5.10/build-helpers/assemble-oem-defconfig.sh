@@ -8,13 +8,11 @@ DEFCONFIG="${1:?Usage: assemble-oem-defconfig.sh <defconfig_path> [ksu_variant]}
 KSU_VARIANT="${2:-SukiSU}"
 
 ADD_SUSFS="${ADD_SUSFS:-true}"
-ADD_ZEROMOUNT="${ADD_ZEROMOUNT:-true}"
 ADD_KPM="${ADD_KPM:-false}"
 ADD_ZRAM="${ADD_ZRAM:-false}"
 ADD_RUST_BUILD="${ADD_RUST_BUILD:-false}"
 KCONFIG_SEARCH_DIR="${KCONFIG_SEARCH_DIR:-}"
 
-echo "assemble-oem-defconfig: variant=${KSU_VARIANT} susfs=${ADD_SUSFS} zeromount=${ADD_ZEROMOUNT} kpm=${ADD_KPM} zram=${ADD_ZRAM} rust=${ADD_RUST_BUILD}"
 
 if [ ! -f "$DEFCONFIG" ]; then
   echo "::error::assemble-oem-defconfig: defconfig not found: ${DEFCONFIG}" >&2
@@ -60,9 +58,6 @@ CONFIG_TMPFS_POSIX_ACL=y
 EOF
 fi
 
-if [ "$ADD_ZEROMOUNT" = "true" ]; then
-  echo "CONFIG_ZEROMOUNT=y" >> "$DEFCONFIG"
-fi
 
 if [ "$ADD_KPM" = "true" ]; then
   echo "CONFIG_KPM=y" >> "$DEFCONFIG"

@@ -15,10 +15,6 @@ on:
         description: "Add SUSFS support"
         type: boolean
         default: true
-      add_nomount:
-        description: "Add NoMount VFS Redirection"
-        type: boolean
-        default: true
       add_kpm:
         description: "Add KPM support"
         type: boolean
@@ -58,9 +54,6 @@ on:
         type: string
         required: true
       add_susfs:
-        type: boolean
-        default: true
-      add_nomount:
         type: boolean
         default: true
       add_kpm:
@@ -360,12 +353,6 @@ jobs:
         PATCH="$GITHUB_WORKSPACE/$VERSION_DIR/SukiSU-Ultra/patches/70_ksu_safety-sukisu-${KERNEL_VER}.patch"
         [ -s "$PATCH" ] && patch -p1 --no-backup-if-mismatch < "$PATCH" || echo "No 70_ patch needed"
 
-    - name: Apply NoMount Patch (zeromount compatibility layer)
-      if: inputs.add_nomount && inputs.add_susfs
-      working-directory: ${{ env.KERNEL_COMMON }}
-      run: |
-        patch -p1 -F3 --no-backup-if-mismatch < "$GITHUB_WORKSPACE/$VERSION_DIR/SukiSU-Ultra/patches/60_zeromount-${GKI_TAG}.patch"
-
     - name: Fix SUSFS Compatibility
       if: inputs.add_susfs
       working-directory: ${{ env.KERNEL_COMMON }}
@@ -406,7 +393,6 @@ jobs:
       working-directory: ${{ env.SYNC_DIR }}
       env:
         ADD_SUSFS: ${{ inputs.add_susfs }}
-        add_nomount: ${{ inputs.add_nomount }}
         ADD_KPM: ${{ inputs.add_kpm }}
         ADD_ZRAM: ${{ inputs.add_zram }}
         LTO_MODE: ${{ inputs.lto_mode }}
@@ -612,7 +598,6 @@ jobs:
       if: always()
       env:
         ADD_SUSFS: ${{ inputs.add_susfs }}
-        ADD_NOMOUNT: ${{ inputs.add_nomount }}
         ADD_KPM: ${{ inputs.add_kpm }}
         ADD_ZRAM: ${{ inputs.add_zram }}
         LTO_MODE: ${{ inputs.lto_mode }}
@@ -630,7 +615,6 @@ jobs:
           echo "| **Android** | ${ANDROID_VER} |"
           echo "| **LTO** | ${LTO_MODE} |"
           echo "| **Enhanced SUSFS** | $(S "$ADD_SUSFS") |"
-          echo "| **NoMount** | $(S "$ADD_NOMOUNT") |"
           echo "| **ZRAM (LZ4K/LZ4KD)** | $(S "$ADD_ZRAM") |"
           echo "| **KPM** | $(S "$ADD_KPM") |"
           echo "| **HMBird** | $(S "$HMBIRD") |"
