@@ -93,7 +93,7 @@ if [ -n "$KCONFIG_SEARCH_DIR" ] && [ -d "$KCONFIG_SEARCH_DIR" ]; then
     case "$key" in
       CONFIG_KSU_SUSFS*)
         symbol="${key#CONFIG_}"
-        if grep -rq "config ${symbol}" "$KCONFIG_SEARCH_DIR" 2>/dev/null; then
+        if grep -rqE "(menu)?config ${symbol}" "$KCONFIG_SEARCH_DIR" 2>/dev/null; then
           echo "$line" >> "$tmpfile"
         else
           echo "assemble-oem-defconfig: pruned ${key} (symbol not in Kconfig)"

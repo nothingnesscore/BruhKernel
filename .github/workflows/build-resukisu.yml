@@ -294,7 +294,7 @@ jobs:
         [ -f "$SUKISU/other/zram/zram_patch/$KERNEL_VER/lz4k_oplus.patch" ] && patch -p1 -F3 < "$SUKISU/other/zram/zram_patch/$KERNEL_VER/lz4k_oplus.patch" || true
 
     - name: Setup HybridMount VFS
-      if: inputs.add_hybridmount_vfs == 'true'
+      if: inputs.add_hybridmount_vfs
       working-directory: ${{ env.KERNEL_ROOT }}
       run: |
         curl -LSs "https://raw.githubusercontent.com/Hybrid-Mount/meta-hybrid_mount/main/module/vfs/setup.sh" | bash
@@ -325,7 +325,7 @@ jobs:
           symbol="${cfg#CONFIG_}"
           [[ "$cfg" =~ ^CONFIG_ ]] || continue
           [[ "$symbol" =~ (KSU_SUSFS|HYBRIDMOUNT|KPM) ]] && continue
-          grep -Rqw "config ${symbol}" common/ --include='Kconfig*' 2>/dev/null && continue
+          grep -RqwE "(menu)?config ${symbol}" common/ --include='Kconfig*' 2>/dev/null && continue
           echo "Pruning undeclared config symbol: ${cfg}"
           sed -i "/^${cfg}=/d" "$DEFCONFIG_FRAGMENT" "$DEFCONFIG" 2>/dev/null || true
         done < <(grep '^CONFIG_' "$DEFCONFIG_FRAGMENT" 2>/dev/null || true)

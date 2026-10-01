@@ -383,6 +383,12 @@ jobs:
       run: |
         bash "$OGKI_HELPERS/setup-bbg.sh" "$SYNC_DIR/kernel_platform" "$DEFCONFIG" "$DEFCONFIG_FRAGMENT"
 
+    - name: Setup HybridMount VFS
+      if: inputs.add_hybridmount_vfs
+      working-directory: ${{ env.KERNEL_ROOT }}
+      run: |
+        curl -LSs "https://raw.githubusercontent.com/Hybrid-Mount/meta-hybrid_mount/main/module/vfs/setup.sh" | bash
+
     - name: Assemble Defconfig
       working-directory: ${{ env.SYNC_DIR }}
       env:
