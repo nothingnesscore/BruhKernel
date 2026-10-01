@@ -9,6 +9,7 @@ KSU_VARIANT="${2:-SukiSU}"
 
 ADD_SUSFS="${ADD_SUSFS:-true}"
 ADD_KPM="${ADD_KPM:-false}"
+ADD_HYBRIDMOUNT_VFS="${ADD_HYBRIDMOUNT_VFS:-true}"
 ADD_ZRAM="${ADD_ZRAM:-false}"
 ADD_RUST_BUILD="${ADD_RUST_BUILD:-false}"
 KCONFIG_SEARCH_DIR="${KCONFIG_SEARCH_DIR:-}"
@@ -62,6 +63,11 @@ fi
 if [ "$ADD_KPM" = "true" ]; then
   echo "CONFIG_KPM=y" >> "$DEFCONFIG"
 fi
+
+if [ "$ADD_HYBRIDMOUNT_VFS" = "true" ]; then
+  echo "CONFIG_HYBRIDMOUNT=y" >> "$DEFCONFIG"
+fi
+
 
 if [ "$ADD_ZRAM" = "true" ]; then
   sed -i 's/CONFIG_ZRAM=m/CONFIG_ZRAM=y/g' "$DEFCONFIG" 2>/dev/null || true

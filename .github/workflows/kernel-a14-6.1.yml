@@ -38,6 +38,10 @@ on:
         description: "Add KPM (SukiSU/ReSukiSU)"
         type: boolean
         default: true
+      add_hybridmount_vfs:
+        description: "Add Hybrid Mount VFS backend"
+        type: boolean
+        default: true
       sukisu_commit:
         description: "SukiSU commit (empty = pinned default)"
         type: string
@@ -67,6 +71,10 @@ on:
         type: boolean
         default: true
       add_kpm:
+        type: boolean
+        default: true
+      add_hybridmount_vfs:
+        description: "Add Hybrid Mount VFS backend"
         type: boolean
         default: true
       sukisu_commit:
@@ -143,6 +151,7 @@ jobs:
       add_bbg: ${{ inputs.add_bbg }}
       add_overlayfs_support: ${{ inputs.add_overlayfs_support }}
       add_kpm: ${{ inputs.add_kpm }}
+      add_hybridmount_vfs: ${{ inputs.add_hybridmount_vfs }}
       sukisu_commit: ${{ inputs.sukisu_commit }}
       device_codename: ${{ inputs.device_codename }}
 
@@ -206,6 +215,7 @@ jobs:
       add_bbg: ${{ inputs.add_bbg }}
       add_overlayfs_support: ${{ inputs.add_overlayfs_support }}
       add_kpm: ${{ inputs.add_kpm }}
+      add_hybridmount_vfs: ${{ inputs.add_hybridmount_vfs }}
       sukisu_commit: ${{ inputs.sukisu_commit }}
       device_codename: ${{ inputs.device_codename }}
 
@@ -269,6 +279,7 @@ jobs:
       add_bbg: ${{ inputs.add_bbg }}
       add_overlayfs_support: ${{ inputs.add_overlayfs_support }}
       add_kpm: ${{ inputs.add_kpm }}
+      add_hybridmount_vfs: ${{ inputs.add_hybridmount_vfs }}
       sukisu_commit: ${{ inputs.sukisu_commit }}
       device_codename: ${{ inputs.device_codename }}
 
@@ -332,5 +343,6 @@ jobs:
       add_bbg: ${{ inputs.add_bbg }}
       add_overlayfs_support: ${{ inputs.add_overlayfs_support }}
       add_kpm: ${{ inputs.add_kpm }}
+      add_hybridmount_vfs: ${{ inputs.add_hybridmount_vfs }}
       sukisu_commit: ${{ inputs.sukisu_commit }}
       device_codename: ${{ inputs.device_codename }}

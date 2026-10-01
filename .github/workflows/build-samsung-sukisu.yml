@@ -19,6 +19,9 @@ on:
         description: "Add KPM support"
         type: boolean
         default: false
+      add_hybridmount_vfs:
+        type: boolean
+        default: true
       add_zram:
         description: "Promote ZRAM to builtin (=y)"
         type: boolean
@@ -59,6 +62,9 @@ on:
       add_kpm:
         type: boolean
         default: false
+      add_hybridmount_vfs:
+        type: boolean
+        default: true
       add_zram:
         type: boolean
         default: false
@@ -365,6 +371,7 @@ jobs:
       env:
         ADD_SUSFS: ${{ inputs.add_susfs }}
         ADD_KPM: ${{ inputs.add_kpm }}
+        ADD_HYBRIDMOUNT_VFS: ${{ inputs.add_hybridmount_vfs }}
         ADD_ZRAM: ${{ inputs.add_zram }}
         LTO_MODE: ${{ inputs.lto_mode }}
       run: |
@@ -378,6 +385,7 @@ jobs:
           ASSEMBLE_FLAGS=""
           [[ "$ADD_SUSFS" == "true" ]] && ASSEMBLE_FLAGS="$ASSEMBLE_FLAGS --susfs --overlayfs"
           [[ "$ADD_KPM" == "true" ]] && ASSEMBLE_FLAGS="$ASSEMBLE_FLAGS --kpm"
+        [[ "$ADD_HYBRIDMOUNT_VFS" == "true" ]] && ASSEMBLE_FLAGS="$ASSEMBLE_FLAGS --hybridmount"
           [[ "$ADD_ZRAM" == "true" ]] && ASSEMBLE_FLAGS="$ASSEMBLE_FLAGS --zram"
           bash "$HELPERS/assemble-defconfig.sh" "$FRAGMENT" "$DEFCONFIG_FRAGMENT" "$DEFCONFIG" $ASSEMBLE_FLAGS
         fi
@@ -573,6 +581,7 @@ jobs:
       env:
         ADD_SUSFS: ${{ inputs.add_susfs }}
         ADD_KPM: ${{ inputs.add_kpm }}
+        ADD_HYBRIDMOUNT_VFS: ${{ inputs.add_hybridmount_vfs }}
         ADD_ZRAM: ${{ inputs.add_zram }}
         LTO_MODE: ${{ inputs.lto_mode }}
       run: |
