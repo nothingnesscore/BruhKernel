@@ -632,6 +632,7 @@ jobs:
           echo "| **Enhanced SUSFS** | $(S "$ADD_SUSFS") |"
           echo "| **ZRAM (LZ4K/LZ4KD)** | $(S "$ADD_ZRAM") |"
           echo "| **KPM** | $(S "$ADD_KPM") |"
+          echo "| **HybridMount VFS** | $(S "$ADD_HYBRIDMOUNT_VFS") |"
           echo "| **HMBird** | $(S "$HMBIRD") |"
           echo "| **Rejects** | ${REJ_COUNT:-0} |"
           echo "| **Artifact** | ${FILE_NAME} |"

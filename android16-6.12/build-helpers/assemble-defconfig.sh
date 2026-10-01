@@ -10,6 +10,7 @@ ADD_SUSFS=false
 ADD_OVERLAYFS=false
 ADD_ZRAM=false
 ADD_KPM=false
+ADD_HYBRIDMOUNT_VFS=false
 USE_KLEAF=false
 
 for arg in "$@"; do

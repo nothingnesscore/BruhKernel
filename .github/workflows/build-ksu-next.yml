@@ -554,6 +554,7 @@ jobs:
           echo "| **Unicode Filter** | Enabled |"
           echo "| **Baseband Guard** | $(S "$ADD_BBG") |"
           echo "| **KPM** | $(S "$ADD_KPM") |"
+          echo "| **HybridMount VFS** | $(S "$ADD_HYBRIDMOUNT_VFS") |"
           echo "| **Device Profile** | ${IDENTITY_STATUS:-Generic} |"
           echo "| **Rejects** | ${REJ_COUNT:-0} |"
           echo "| **Artifact** | ${FILE_NAME} |"
