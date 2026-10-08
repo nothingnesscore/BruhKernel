@@ -1,0 +1,31 @@
+diff --git a/kernel/runtime/ksud_integration.c b/kernel/runtime/ksud_integration.c
+--- a/kernel/runtime/ksud_integration.c
++++ b/kernel/runtime/ksud_integration.c
+@@ -478,6 +478,14 @@
+ 
+ int ksu_handle_input_handle_event(unsigned int *type, unsigned int *code, int *value)
+ {
++    /* bruhkernel (upstream SukiSU #919): safe mode is an early-boot rescue
++     * mechanism. Counting past the early-boot window let three volume-down
++     * presses at any later point flip the flag, which shows a safe-mode badge
++     * and blocks module flashing in the manager while already-loaded modules
++     * keep running. Ignore input entirely once that window has closed. */
++    if (ksu_boot_completed || ksu_module_mounted)
++        return 0;
++
+     if (*type == EV_KEY && *code == KEY_VOLUMEDOWN) {
+         int val = *value;
+         pr_info("KEY_VOLUMEDOWN val: %d\n", val);
+@@ -505,6 +513,12 @@
+         return false;
+     }
+ 
++    /* bruhkernel (upstream SukiSU #919): latch the decision point. Once the
++     * early-boot window has closed, later callers must not be able to turn
++     * safe mode on. */
++    if (ksu_boot_completed || ksu_module_mounted)
++        return false;
++
+     // stop hook first!
+     ksu_stop_input_hook_runtime();
+ 

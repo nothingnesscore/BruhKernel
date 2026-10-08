@@ -1,0 +1,31 @@
+diff --git a/kernel/runtime/ksud.c b/kernel/runtime/ksud.c
+--- a/kernel/runtime/ksud.c
++++ b/kernel/runtime/ksud.c
+@@ -567,6 +567,12 @@
+     if (already_checked)
+         return true;
+ 
++    /* bruhkernel (upstream SukiSU #919): latch the decision point. Once the
++     * early-boot window has closed, later callers must not be able to turn
++     * safe mode on. */
++    if (ksu_boot_completed || ksu_module_mounted)
++        return false;
++
+     // stop hook first!
+     stop_input_hook();
+ 
+@@ -583,6 +589,14 @@
+     static int vol_up_cnt = 0;
+     static int vol_down_cnt = 0;
+ 
++    /* bruhkernel (upstream SukiSU #919): safe mode is an early-boot rescue
++     * mechanism. Counting past the early-boot window let three volume-down
++     * presses at any later point flip the flag, which shows a safe-mode badge
++     * and blocks module flashing in the manager while already-loaded modules
++     * keep running. Ignore input entirely once that window has closed. */
++    if (ksu_boot_completed || ksu_module_mounted)
++        return;
++
+     if (!value)
+         return;
+ 

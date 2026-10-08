@@ -255,7 +255,16 @@ if [ -d "$KERNEL_DIR/fs" ]; then
 
 struct static_key_false fake_status_initialize_key __attribute__((weak)) = STATIC_KEY_FALSE_INIT;
 struct static_key_true ksu_is_init_rc_hook_enabled __attribute__((weak)) = STATIC_KEY_TRUE_INIT;
-struct static_key_true ksu_is_input_hook_enabled __attribute__((weak)) = STATIC_KEY_TRUE_INIT;
+/*
+ * Disabled by default. SukiSU removed ksu_is_input_hook_enabled in 5a2bb7e5
+ * (upstream #928) and now counts volume-down via a kprobe on input_event that
+ * it unregisters at post-fs-data. Without a strong definition here, the 50_
+ * patch's drivers/input/input.c hook would otherwise stay permanently live and
+ * trip safe mode after 3 volume-down presses at any point in the session
+ * (upstream #919). Where the KSU variant still provides the strong symbol this
+ * weak stub is ignored entirely, so those builds are unaffected.
+ */
+struct static_key_true ksu_is_input_hook_enabled __attribute__((weak)) = { .key = STATIC_KEY_INIT_FALSE };
 struct static_key_true ksu_su_compat_enabled __attribute__((weak)) = STATIC_KEY_TRUE_INIT;
 
 __attribute__((weak, cold)) int ksu_handle_input_handle_event(unsigned int *type, unsigned int *code, int *value) { return 0; }
