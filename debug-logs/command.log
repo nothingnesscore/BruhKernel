@@ -1,0 +1,422 @@
+Loading: 
+Loading: 
+Loading: 1 packages loaded
+Loading: 1 packages loaded
+    currently loading: common
+Analyzing: target //common:kernel_aarch64_dist (2 packages loaded)
+Analyzing: target //common:kernel_aarch64_dist (2 packages loaded, 0 targets configured)
+Analyzing: target //common:kernel_aarch64_dist (55 packages loaded, 5390 targets configured)
+INFO: Analyzed target //common:kernel_aarch64_dist (56 packages loaded, 93769 targets configured).
+ checking cached actions
+INFO: Found 1 target...
+[0 / 7] [Prepa] BazelWorkspaceStatusAction stable-status.txt
+[129 / 400] [Prepa] Writing repo mapping manifest for //build/kernel/kleaf/impl:cache_dir_config_tags [for tool]
+[394 / 415] checking cached actions
+[400 / 422] Creating symlinks to @//build/kernel:hermetic-tools; 0s processwrapper-sandbox ... (4 actions running)
+[403 / 422] Creating symlinks to @//build/kernel:hermetic-tools [for tool]; 1s processwrapper-sandbox ... (2 actions, 1 running)
+[404 / 422] Generating build config @//common:kernel_aarch64_build_config; 1s processwrapper-sandbox ... (2 actions running)
+[405 / 422] Executing genrule //build/kernel:gki_certification_tools; 2s processwrapper-sandbox ... (2 actions running)
+[406 / 422] Executing genrule //build/kernel:gki_certification_tools; 3s processwrapper-sandbox ... (3 actions running)
+[407 / 422] Executing genrule //build/kernel:gki_certification_tools; 4s processwrapper-sandbox ... (2 actions running)
+[409 / 422] Creating abi_symbollist.raw @//common:kernel_aarch64_raw_kmi_symbol_list; 0s processwrapper-sandbox
+[410 / 422] Creating kernel config (lto=thin;sukisu_gki.fragment;trim) @//common:kernel_aarch64_config; 0s local
+ERROR: /home/runner/work/BruhKernel/BruhKernel/android14-6.1-138/common/BUILD.bazel:139:22: Creating kernel config (lto=thin;sukisu_gki.fragment;trim) @//common:kernel_aarch64_config failed: (Exit 1): bash failed: error executing KernelConfig command (from target //common:kernel_aarch64_config) 
+  (cd /home/runner/work/BruhKernel/BruhKernel/android14-6.1-138/out/bazel/output_user_root/4fc27fc49d9625b5c9a4128bcf6a1acf/execroot/__main__ && \
+  exec env - \
+  /bin/bash -c '
+         # error on failures
+           set -e
+           set -o pipefail
+    
+                export PATH=$(bazel-out/k8-fastbuild/bin/build/kernel/hermetic-tools/readlink -m bazel-out/k8-fastbuild/bin/build/kernel/hermetic-tools)
+                # Ensure _setup_env.sh keeps the original items in PATH
+                export KLEAF_INTERNAL_BUILDTOOLS_PREBUILT_BIN=bazel-out/k8-fastbuild/bin/build/kernel/hermetic-tools
+
+         # error on failures
+           set -e
+           set -o pipefail
+         # utility functions
+           source build/kernel/build_utils.sh
+         # source the build environment
+           source bazel-out/k8-fastbuild/bin/common/kernel_aarch64_env.sh
+           
+        # Increase parallelism # TODO(b/192655643): do not use -j anymore
+          export MAKEFLAGS="${MAKEFLAGS} -j$(
+            make_jobs="$( (while read -r name value; do if [ "$name" = "MAKE_JOBS" ]; then echo "$value"; fi; done < bazel-out/volatile-status.txt) )"
+            if [[ -n "$make_jobs" ]]; then
+              echo "$make_jobs"
+            else
+              nproc
+            fi
+          )"
+    
+         # setup LD_LIBRARY_PATH for prebuilts
+           export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:${ROOT_DIR}/prebuilts/kernel-build-tools/linux-x86/lib64
+         # Set up KCONFIG_EXT
+           if [ -n "${KCONFIG_EXT}" ]; then
+             export KCONFIG_EXT_PREFIX=$(realpath $(dirname ${KCONFIG_EXT}) --relative-to ${ROOT_DIR}/${KERNEL_DIR})/
+           fi
+           if [ -n "${DTSTREE_MAKEFILE}" ]; then
+             export dtstree=$(realpath -s $(dirname ${DTSTREE_MAKEFILE}) --relative-to ${ROOT_DIR}/${KERNEL_DIR})
+           fi
+         # Set up KCPPFLAGS and KCPPFLAGS_COMPAT
+         # For Kleaf local (non-sandbox) builds, $ROOT_DIR is under execroot but
+         # $ROOT_DIR/$KERNEL_DIR is a symlink to the real source tree under
+         # workspace root, making $abs_srctree not under $ROOT_DIR.
+           if [[ "$(realpath ${ROOT_DIR}/${KERNEL_DIR})" != "${ROOT_DIR}/${KERNEL_DIR}" ]]; then
+             export KCPPFLAGS="$KCPPFLAGS -ffile-prefix-map=$(realpath ${ROOT_DIR}/${KERNEL_DIR})/="
+           fi
+           export KCPPFLAGS_COMPAT="$KCPPFLAGS"
+           
+          
+            KLEAF_CONFIG_TAGS_TMP=$(mktemp kleaf_config_tags.json.XXXXXX)
+            # cache_dir_config_tags.py requires --dest to not exist, otherwise it compares
+            # and fails.
+            rm -f "${KLEAF_CONFIG_TAGS_TMP}"
+
+            # Add label of this target.
+            bazel-out/k8-opt-exec-ST-10ba2ffbdcc7/bin/build/kernel/kleaf/impl/cache_dir_config_tags \
+                --base bazel-out/k8-fastbuild/bin/common/kernel_aarch64_env/common_config_tags.json \
+                --target '\''@//common:kernel_aarch64_config'\'' \
+                --dest "${KLEAF_CONFIG_TAGS_TMP}"
+
+            export OUT_DIR_SUFFIX=$(cat ${KLEAF_CONFIG_TAGS_TMP} | sha1sum -b | cut -c-8)
+
+            export COMMON_OUT_DIR=/home/runner/work/BruhKernel/BruhKernel/android14-6.1-138/out/cache/${OUT_DIR_SUFFIX}
+            export OUT_DIR=${COMMON_OUT_DIR}/${KERNEL_DIR}
+            mkdir -p "${OUT_DIR}"
+
+            # Reconcile differences between expected file and target file, if any,
+            # to prevent hash collision.
+            bazel-out/k8-opt-exec-ST-10ba2ffbdcc7/bin/build/kernel/kleaf/impl/cache_dir_config_tags \
+                --base "${KLEAF_CONFIG_TAGS_TMP}" \
+                --dest "${COMMON_OUT_DIR}/kleaf_config_tags.json"
+
+            rm -f "${KLEAF_CONFIG_TAGS_TMP}"
+            unset KLEAF_CONFIG_TAGS_TMP
+
+            
+        
+        # Pre-defconfig commands
+          eval ${PRE_DEFCONFIG_CMDS}
+        # Actual defconfig
+          make -C ${KERNEL_DIR} ${TOOL_ARGS} O=${OUT_DIR} ${DEFCONFIG}
+        # Post-defconfig commands
+          eval ${POST_DEFCONFIG_CMDS}
+        # Re-config
+          
+        (
+            need_olddefconfig=
+            configs_to_apply=$(echo --enable LTO_CLANG --disable LTO_NONE --enable LTO_CLANG_THIN --disable LTO_CLANG_FULL --enable THINLTO --disable UNUSED_SYMBOLS --enable TRIM_UNUSED_KSYMS --set-str UNUSED_KSYMS_WHITELIST abi_symbollist.raw)
+            # There could be reconfigurations based on configs which can lead to
+            #  an empty `configs_to_apply` even when `configs` is not empty,
+            #  for that reason it is better to check it is not empty before using it.
+            if [ -n "${configs_to_apply}" ]; then
+                ${KERNEL_DIR}/scripts/config --file ${OUT_DIR}/.config ${configs_to_apply}
+                need_olddefconfig=1
+            fi
+
+            
+        (
+            # Remove any trailing comments
+            sanitized_fragments=
+            for fragment in common/arch/arm64/configs/sukisu_gki.fragment; do
+                new_fragment=${OUT_DIR}/defconfig_fragments/${fragment}
+                mkdir -p $(dirname ${new_fragment})
+                # Use Python, not sed, to support non-greedy regex matching
+                # I avoided perl because it is not hermetic yet.
+                python3 -c '\''import re, sys; [print(re.sub(r"(\S+=[^#]*?)\s*#.*$", r"\1", l.rstrip("\n"))) for l in open(sys.argv[1])]'\'' ${fragment} > ${new_fragment}
+                sanitized_fragments="${sanitized_fragments} ${new_fragment}"
+            done
+
+            # Merge target defconfig into .config from kernel_build
+            KCONFIG_CONFIG=${OUT_DIR}/.config.tmp \
+                ${KERNEL_DIR}/scripts/kconfig/merge_config.sh \
+                    -m -r \
+                    ${OUT_DIR}/.config \
+                    ${sanitized_fragments} > /dev/null
+            mv ${OUT_DIR}/.config.tmp ${OUT_DIR}/.config
+        )
+    
+            need_olddefconfig=1
+        
+
+            if [[ -n "${need_olddefconfig}" ]]; then
+                make -C ${KERNEL_DIR} ${TOOL_ARGS} O=${OUT_DIR} olddefconfig
+            fi
+
+            
+        (
+            for defconfig_path in common/arch/arm64/configs/sukisu_gki.fragment; do
+                config_set='\''s/^(CONFIG_\w*)=.*/\1/p'\''
+                config_not_set='\''s/^# (CONFIG_\w*) is not set$/\1/p'\''
+                configs=$(sed -n -E -e "${config_set}" -e "${config_not_set}" ${defconfig_path})
+                error_msg=""
+                for config in ${configs}; do
+                    defconfig_line=$(grep -w -e "${config}" ${defconfig_path})
+                    defconfig_value=$(echo "${defconfig_line}" | sed -E -e '\''s/\s*# nocheck.*$//g'\'')
+                    nocheck_reason=$(echo ${defconfig_line} | sed -n -E -e '\''s/^.*# nocheck(:\s*)?(.*)$/\2/p'\'')
+                    actual_value=$(grep -w -e "${config}" ${OUT_DIR}/.config || true)
+
+                    config_not_set_regexp='\''^# CONFIG_[A-Z_]+ is not set$'\''
+                    if [[ "${defconfig_value}" =~ ${config_not_set_regexp} ]]; then
+                        defconfig_value=""
+                    fi
+                    if [[ "${actual_value}" =~ ${config_not_set_regexp} ]]; then
+                        actual_value=""
+                    fi
+
+                    if [[ "${defconfig_value}" != "${actual_value}" ]] ; then
+                        my_msg="${config}: actual '\''${actual_value}'\'', expected '\''${defconfig_value}'\'' from ${defconfig_path}."
+                        if [[ "${defconfig_line}" == *#\ nocheck* ]]; then
+                            warn_msg="${warn_msg}
+    ${my_msg}
+        (ignore reason: ${nocheck_reason})"
+                        else
+                            error_msg="${error_msg}
+    ${my_msg}"
+                            found_unexpected=1
+                        fi
+                    fi
+                done
+                if [[ -n "${warn_msg}" ]]; then
+                    echo "WARNING: @//common:kernel_aarch64_config: ${warn_msg}" >&2
+                fi
+                if [[ -n "${error_msg}" ]]; then
+                    echo "ERROR: @//common:kernel_aarch64_config: ${error_msg}
+    Are they declared in Kconfig?" >&2
+                    exit 1
+                fi
+            done
+        )
+    
+        )
+    
+        # HACK: run syncconfig to avoid re-triggerring kernel_build
+          make -C ${KERNEL_DIR} ${TOOL_ARGS} O=${OUT_DIR} syncconfig
+        # Grab outputs
+          rsync -aL ${OUT_DIR}/.config bazel-out/k8-fastbuild/bin/common/kernel_aarch64_config/out_dir/.config
+          rsync -aL ${OUT_DIR}/include/ bazel-out/k8-fastbuild/bin/common/kernel_aarch64_config/out_dir/include/
+          
+            rsync -aL bazel-out/k8-fastbuild/bin/common/kernel_aarch64_raw_kmi_symbol_list/abi_symbollist.raw bazel-out/k8-fastbuild/bin/common/kernel_aarch64_config/out_dir/abi_symbollist.raw
+        
+
+        # Ensure reproducibility. The value of the real $ROOT_DIR is replaced in the setup script.
+          sed -i'\'''\'' -e '\''s:'\''"${ROOT_DIR}"'\'':${ROOT_DIR}:g'\'' bazel-out/k8-fastbuild/bin/common/kernel_aarch64_config/out_dir/include/config/auto.conf.cmd
+
+        # HACK: Ensure we always SYNC auto.conf. This ensures binaries like fixdep are always
+        # re-built. See b/263415662
+          echo "include/config/auto.conf: FORCE" >> bazel-out/k8-fastbuild/bin/common/kernel_aarch64_config/out_dir/include/config/auto.conf.cmd
+
+          
+            ln -sfT ${OUT_DIR_SUFFIX} /home/runner/work/BruhKernel/BruhKernel/android14-6.1-138/out/cache/last_config
+            
+        
+        ')
+# Configuration: bc32e6f1144cea50d2243b572fdfccd636b01de88f2406b78412231910ab4adf
+# Execution platform: @local_config_platform//:host
+.config:7600:warning: override: KSU_SUSFS changes choice state
+.config:7627:warning: override: ZRAM_DEF_COMP_LZ4KD changes choice state
+ERROR: @//common:kernel_aarch64_config: 
+    CONFIG_NET_SCH_FQ: actual 'CONFIG_NET_SCH_FQ=y', expected '# CONFIG_NET_SCH_FQ is already =y in android14-6.1 gki_defconfig, listed here to
+CONFIG_NET_SCH_FQ=y' from common/arch/arm64/configs/sukisu_gki.fragment.
+    Are they declared in Kconfig?
+Target //common:kernel_aarch64_dist failed to build
+ERROR: /home/runner/work/BruhKernel/BruhKernel/android14-6.1-138/common/BUILD.bazel:139:22 Middleman _middlemen/common_Skernel_Uaarch64_Udist-runfiles failed: (Exit 1): bash failed: error executing KernelConfig command (from target //common:kernel_aarch64_config) 
+  (cd /home/runner/work/BruhKernel/BruhKernel/android14-6.1-138/out/bazel/output_user_root/4fc27fc49d9625b5c9a4128bcf6a1acf/execroot/__main__ && \
+  exec env - \
+  /bin/bash -c '
+         # error on failures
+           set -e
+           set -o pipefail
+    
+                export PATH=$(bazel-out/k8-fastbuild/bin/build/kernel/hermetic-tools/readlink -m bazel-out/k8-fastbuild/bin/build/kernel/hermetic-tools)
+                # Ensure _setup_env.sh keeps the original items in PATH
+                export KLEAF_INTERNAL_BUILDTOOLS_PREBUILT_BIN=bazel-out/k8-fastbuild/bin/build/kernel/hermetic-tools
+
+         # error on failures
+           set -e
+           set -o pipefail
+         # utility functions
+           source build/kernel/build_utils.sh
+         # source the build environment
+           source bazel-out/k8-fastbuild/bin/common/kernel_aarch64_env.sh
+           
+        # Increase parallelism # TODO(b/192655643): do not use -j anymore
+          export MAKEFLAGS="${MAKEFLAGS} -j$(
+            make_jobs="$( (while read -r name value; do if [ "$name" = "MAKE_JOBS" ]; then echo "$value"; fi; done < bazel-out/volatile-status.txt) )"
+            if [[ -n "$make_jobs" ]]; then
+              echo "$make_jobs"
+            else
+              nproc
+            fi
+          )"
+    
+         # setup LD_LIBRARY_PATH for prebuilts
+           export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:${ROOT_DIR}/prebuilts/kernel-build-tools/linux-x86/lib64
+         # Set up KCONFIG_EXT
+           if [ -n "${KCONFIG_EXT}" ]; then
+             export KCONFIG_EXT_PREFIX=$(realpath $(dirname ${KCONFIG_EXT}) --relative-to ${ROOT_DIR}/${KERNEL_DIR})/
+           fi
+           if [ -n "${DTSTREE_MAKEFILE}" ]; then
+             export dtstree=$(realpath -s $(dirname ${DTSTREE_MAKEFILE}) --relative-to ${ROOT_DIR}/${KERNEL_DIR})
+           fi
+         # Set up KCPPFLAGS and KCPPFLAGS_COMPAT
+         # For Kleaf local (non-sandbox) builds, $ROOT_DIR is under execroot but
+         # $ROOT_DIR/$KERNEL_DIR is a symlink to the real source tree under
+         # workspace root, making $abs_srctree not under $ROOT_DIR.
+           if [[ "$(realpath ${ROOT_DIR}/${KERNEL_DIR})" != "${ROOT_DIR}/${KERNEL_DIR}" ]]; then
+             export KCPPFLAGS="$KCPPFLAGS -ffile-prefix-map=$(realpath ${ROOT_DIR}/${KERNEL_DIR})/="
+           fi
+           export KCPPFLAGS_COMPAT="$KCPPFLAGS"
+           
+          
+            KLEAF_CONFIG_TAGS_TMP=$(mktemp kleaf_config_tags.json.XXXXXX)
+            # cache_dir_config_tags.py requires --dest to not exist, otherwise it compares
+            # and fails.
+            rm -f "${KLEAF_CONFIG_TAGS_TMP}"
+
+            # Add label of this target.
+            bazel-out/k8-opt-exec-ST-10ba2ffbdcc7/bin/build/kernel/kleaf/impl/cache_dir_config_tags \
+                --base bazel-out/k8-fastbuild/bin/common/kernel_aarch64_env/common_config_tags.json \
+                --target '\''@//common:kernel_aarch64_config'\'' \
+                --dest "${KLEAF_CONFIG_TAGS_TMP}"
+
+            export OUT_DIR_SUFFIX=$(cat ${KLEAF_CONFIG_TAGS_TMP} | sha1sum -b | cut -c-8)
+
+            export COMMON_OUT_DIR=/home/runner/work/BruhKernel/BruhKernel/android14-6.1-138/out/cache/${OUT_DIR_SUFFIX}
+            export OUT_DIR=${COMMON_OUT_DIR}/${KERNEL_DIR}
+            mkdir -p "${OUT_DIR}"
+
+            # Reconcile differences between expected file and target file, if any,
+            # to prevent hash collision.
+            bazel-out/k8-opt-exec-ST-10ba2ffbdcc7/bin/build/kernel/kleaf/impl/cache_dir_config_tags \
+                --base "${KLEAF_CONFIG_TAGS_TMP}" \
+                --dest "${COMMON_OUT_DIR}/kleaf_config_tags.json"
+
+            rm -f "${KLEAF_CONFIG_TAGS_TMP}"
+            unset KLEAF_CONFIG_TAGS_TMP
+
+            
+        
+        # Pre-defconfig commands
+          eval ${PRE_DEFCONFIG_CMDS}
+        # Actual defconfig
+          make -C ${KERNEL_DIR} ${TOOL_ARGS} O=${OUT_DIR} ${DEFCONFIG}
+        # Post-defconfig commands
+          eval ${POST_DEFCONFIG_CMDS}
+        # Re-config
+          
+        (
+            need_olddefconfig=
+            configs_to_apply=$(echo --enable LTO_CLANG --disable LTO_NONE --enable LTO_CLANG_THIN --disable LTO_CLANG_FULL --enable THINLTO --disable UNUSED_SYMBOLS --enable TRIM_UNUSED_KSYMS --set-str UNUSED_KSYMS_WHITELIST abi_symbollist.raw)
+            # There could be reconfigurations based on configs which can lead to
+            #  an empty `configs_to_apply` even when `configs` is not empty,
+            #  for that reason it is better to check it is not empty before using it.
+            if [ -n "${configs_to_apply}" ]; then
+                ${KERNEL_DIR}/scripts/config --file ${OUT_DIR}/.config ${configs_to_apply}
+                need_olddefconfig=1
+            fi
+
+            
+        (
+            # Remove any trailing comments
+            sanitized_fragments=
+            for fragment in common/arch/arm64/configs/sukisu_gki.fragment; do
+                new_fragment=${OUT_DIR}/defconfig_fragments/${fragment}
+                mkdir -p $(dirname ${new_fragment})
+                # Use Python, not sed, to support non-greedy regex matching
+                # I avoided perl because it is not hermetic yet.
+                python3 -c '\''import re, sys; [print(re.sub(r"(\S+=[^#]*?)\s*#.*$", r"\1", l.rstrip("\n"))) for l in open(sys.argv[1])]'\'' ${fragment} > ${new_fragment}
+                sanitized_fragments="${sanitized_fragments} ${new_fragment}"
+            done
+
+            # Merge target defconfig into .config from kernel_build
+            KCONFIG_CONFIG=${OUT_DIR}/.config.tmp \
+                ${KERNEL_DIR}/scripts/kconfig/merge_config.sh \
+                    -m -r \
+                    ${OUT_DIR}/.config \
+                    ${sanitized_fragments} > /dev/null
+            mv ${OUT_DIR}/.config.tmp ${OUT_DIR}/.config
+        )
+    
+            need_olddefconfig=1
+        
+
+            if [[ -n "${need_olddefconfig}" ]]; then
+                make -C ${KERNEL_DIR} ${TOOL_ARGS} O=${OUT_DIR} olddefconfig
+            fi
+
+            
+        (
+            for defconfig_path in common/arch/arm64/configs/sukisu_gki.fragment; do
+                config_set='\''s/^(CONFIG_\w*)=.*/\1/p'\''
+                config_not_set='\''s/^# (CONFIG_\w*) is not set$/\1/p'\''
+                configs=$(sed -n -E -e "${config_set}" -e "${config_not_set}" ${defconfig_path})
+                error_msg=""
+                for config in ${configs}; do
+                    defconfig_line=$(grep -w -e "${config}" ${defconfig_path})
+                    defconfig_value=$(echo "${defconfig_line}" | sed -E -e '\''s/\s*# nocheck.*$//g'\'')
+                    nocheck_reason=$(echo ${defconfig_line} | sed -n -E -e '\''s/^.*# nocheck(:\s*)?(.*)$/\2/p'\'')
+                    actual_value=$(grep -w -e "${config}" ${OUT_DIR}/.config || true)
+
+                    config_not_set_regexp='\''^# CONFIG_[A-Z_]+ is not set$'\''
+                    if [[ "${defconfig_value}" =~ ${config_not_set_regexp} ]]; then
+                        defconfig_value=""
+                    fi
+                    if [[ "${actual_value}" =~ ${config_not_set_regexp} ]]; then
+                        actual_value=""
+                    fi
+
+                    if [[ "${defconfig_value}" != "${actual_value}" ]] ; then
+                        my_msg="${config}: actual '\''${actual_value}'\'', expected '\''${defconfig_value}'\'' from ${defconfig_path}."
+                        if [[ "${defconfig_line}" == *#\ nocheck* ]]; then
+                            warn_msg="${warn_msg}
+    ${my_msg}
+        (ignore reason: ${nocheck_reason})"
+                        else
+                            error_msg="${error_msg}
+    ${my_msg}"
+                            found_unexpected=1
+                        fi
+                    fi
+                done
+                if [[ -n "${warn_msg}" ]]; then
+                    echo "WARNING: @//common:kernel_aarch64_config: ${warn_msg}" >&2
+                fi
+                if [[ -n "${error_msg}" ]]; then
+                    echo "ERROR: @//common:kernel_aarch64_config: ${error_msg}
+    Are they declared in Kconfig?" >&2
+                    exit 1
+                fi
+            done
+        )
+    
+        )
+    
+        # HACK: run syncconfig to avoid re-triggerring kernel_build
+          make -C ${KERNEL_DIR} ${TOOL_ARGS} O=${OUT_DIR} syncconfig
+        # Grab outputs
+          rsync -aL ${OUT_DIR}/.config bazel-out/k8-fastbuild/bin/common/kernel_aarch64_config/out_dir/.config
+          rsync -aL ${OUT_DIR}/include/ bazel-out/k8-fastbuild/bin/common/kernel_aarch64_config/out_dir/include/
+          
+            rsync -aL bazel-out/k8-fastbuild/bin/common/kernel_aarch64_raw_kmi_symbol_list/abi_symbollist.raw bazel-out/k8-fastbuild/bin/common/kernel_aarch64_config/out_dir/abi_symbollist.raw
+        
+
+        # Ensure reproducibility. The value of the real $ROOT_DIR is replaced in the setup script.
+          sed -i'\'''\'' -e '\''s:'\''"${ROOT_DIR}"'\'':${ROOT_DIR}:g'\'' bazel-out/k8-fastbuild/bin/common/kernel_aarch64_config/out_dir/include/config/auto.conf.cmd
+
+        # HACK: Ensure we always SYNC auto.conf. This ensures binaries like fixdep are always
+        # re-built. See b/263415662
+          echo "include/config/auto.conf: FORCE" >> bazel-out/k8-fastbuild/bin/common/kernel_aarch64_config/out_dir/include/config/auto.conf.cmd
+
+          
+            ln -sfT ${OUT_DIR_SUFFIX} /home/runner/work/BruhKernel/BruhKernel/android14-6.1-138/out/cache/last_config
+            
+        
+        ')
+# Configuration: bc32e6f1144cea50d2243b572fdfccd636b01de88f2406b78412231910ab4adf
+# Execution platform: @local_config_platform//:host
+INFO: Elapsed time: 34.778s, Critical Path: 13.04s
+INFO: 411 processes: 396 internal, 15 processwrapper-sandbox.
+ERROR: Build did NOT complete successfully
