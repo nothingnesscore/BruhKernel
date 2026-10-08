@@ -1,151 +1,368 @@
 # ⚡ BruhKernel
 
-> **Automated Custom GKI Kernel Build Pipeline**  
-> *Reproducible, High-Performance GKI 2.0 Kernels with HybridMount VFS Redirection & SUSFS*
+**Custom GKI kernels for Android, built automatically in GitHub Actions.**
 
-[![CI Build](https://github.com/nothingnesscore/BruhKernel/actions/workflows/kernel-custom.yml/badge.svg)](https://github.com/nothingnesscore/BruhKernel/actions/workflows/kernel-custom.yml)
-[![Kernel: GKI 6.1](https://img.shields.io/badge/Kernel-GKI%206.1-orange.svg)](https://android.googlesource.com/kernel/common)
-[![Platform: Android](https://img.shields.io/badge/Platform-Android%2012--16-blue.svg)](https://source.android.com)
-[![VFS: HybridMount](https://img.shields.io/badge/VFS-HybridMount-red.svg)](https://github.com/Hybrid-Mount/meta-hybrid_mount)
-[![Root Hiding: SUSFS](https://img.shields.io/badge/Root%20Hiding-SUSFS%20(v1.5.0--v2.3.0%2B)-purple.svg)](https://gitlab.com/simonpunk/susfs4ksu)
+You press a button, GitHub compiles a kernel for your phone in the cloud, and
+you get back a flashable zip. No compiling toolchain, no Linux box, no waiting
+on your own laptop for four hours.
 
----
-
-## ⚠️ Device Note: Default Kernel String Spoofing
-
-> **The prebuilt kernel strings in this repository are configured for `peridot` — POCO F6 / Redmi Turbo 3 (Android 14, Kernel 6.1).**
-
-This means the kernel version banner (`uname -r`), build timestamp, and compiler info embedded in the kernel image are spoofed to match the stock OEM values for that specific device — helping avoid detection-based mismatches on banking apps and integrity checks.
-
-**If you are using a different GKI-compatible device**, you will want to match your own device's stock kernel strings. Here is how to do it:
-
-### Custom Device Kernel Strings — Step by Step
-
-1. **Extract your stock `boot.img`:** Download your device's OTA or stock firmware. Use `payload-dumper-go` or `payload_dumper.py` to extract `boot.img` from `payload.bin`.
-2. **Read the kernel version string:**
-   ```bash
-   strings boot.img | grep "Linux version"
-   ```
-   Example output:
-   ```
-   Linux version 6.1.57-android14-11-gabcdef123456-ab12345678 (build-user@build-host) (Android clang version 17.0.2, ...) #1 SMP PREEMPT ...
-   ```
-3. **Edit `device-profiles.json`:** Add your device profile under `devices`:
-   ```json
-   "mydevice": {
-     "name": "Your Device Name",
-     "codename": "mydevice",
-     "android_version": "android14",
-     "kernel_version": "6.1",
-     "sub_level": "57",
-     "os_patch_level": "2024-01",
-     "stock_kernel": {
-       "release": "-android14-11-gabcdef123456-ab12345678",
-       "version_string": "#1 SMP PREEMPT Mon Jan 1 12:00:00 UTC 2024",
-       "build_user": "build-user",
-       "build_host": "build-host",
-       "compiler_info": "Android clang version 17.0.2"
-     }
-   }
-   ```
-4. **Select your codename in the workflow dispatch:** When triggering a build via GitHub Actions, choose `device_codename: mydevice` from the dropdown (after adding it to the options list in the relevant `kernel-*.yml` file).
-5. **Alternatively use BootKernelChanger:** Flash the generic built kernel, then use [BootKernelChanger](https://github.com/Dayto0/BootKernelChanger) to inject the compiled kernel into your stock boot image. This preserves the stock OEM metadata automatically without editing the profiles.
+The reference device is the **Xiaomi POCO F6 / Redmi Turbo 3** (codename
+`peridot`), but any GKI phone from Android 12 to 16 will usually work.
 
 ---
 
-## 📖 Overview
+## Table of contents
 
-**BruhKernel** is an automated GKI (Generic Kernel Image) build pipeline designed for modern Android 12 – 16 devices running common GKI kernels (with profiles for Android 14 Kernel 6.1).
-
-It combines modern kernel root solutions with an in-kernel **VFS path redirection backend (HybridMount, `CONFIG_HYBRIDMOUNT=y`)** and **SUSFS (v1.5.0 – v2.3.0+) root isolation**, providing an ultra-clean environment where module modifications are transparent and leave few mount table artifacts.
-
----
-
-## 💡 Architectural Decisions: VFS Backend History
-
-Earlier iterations used **ZeroMount** (`60_zeromount` patches modifying `fs/overlayfs`), which relied on overlayfs hooks and `/dev` ioctl communication, and then **NoMount** (`CONFIG_NOMOUNT=y`), which redirected paths through the kernel keyring with no `/dev` nodes at all.
-
-**BruhKernel now builds HybridMount** (`CONFIG_HYBRIDMOUNT=y`, from [Hybrid-Mount](https://github.com/Hybrid-Mount/meta-hybrid_mount)):
-* **No redundant overlayfs hooks:** the backend is added directly to `common/` rather than layered on top of `fs/overlayfs`.
-* **Kernel-assisted module redirection:** SukiSU delegates all module mounting to the installed metamodule, and HybridMount provides the VFS layer underneath it.
-* **Lean & Conflict-Free:** no `CONFIG_NOMOUNT` or `CONFIG_ZEROMOUNT` symbol remains in any `defconfig.fragment`.
-
-If you are upgrading from an older NoMount build, expect to install or update the **BruhMount** metamodule (see [Flashing](#-flashing--verification)) — module redirection is handled by the metamodule, not by the core.
+- [What you get](#what-you-get)
+- [Quick start](#quick-start)
+- [Picking your target](#picking-your-target)
+- [The build options, explained](#the-build-options-explained)
+- [Choosing a root variant](#choosing-a-root-variant)
+- [After flashing](#after-flashing)
+- [If something goes wrong](#if-something-goes-wrong)
+- [How the repository is laid out](#how-the-repository-is-laid-out)
+- [What actually happens during a build](#what-actually-happens-during-a-build)
+- [Other devices: Samsung and OnePlus/OPPO](#other-devices-samsung-and-oneplusoppo)
+- [Contributing](#contributing)
+- [Credits](#credits)
+- [Licence](#licence)
 
 ---
 
-## 🌟 Key Features & Capabilities
+## What you get
 
-### 1. Multi-Variant KernelSU Support
-* **SukiSU-Ultra:** Recommended variant combining KernelSU root with SUSFS and Kernel Patch Module (KPM) support.
-* **ReSukiSU:** Minimalist, performance-tuned SukiSU build.
-* **KernelSU-Next (KSUN):** The upstream KernelSU fork by rifsxd and pershoot.
-* **WildKSU (WKSU):** Performance-oriented KernelSU variant.
+Each completed run produces a zip you flash to replace your stock kernel:
 
-### 2. Kernel SUSFS Integration (v1.5.0 – v2.3.0+)
-* Advanced kernel-level isolation: `sus_path`, `sus_mount`, `sus_kstat`, `sus_map`, and `open_redirect`.
-* Automated sdcard monitoring worker (`susfs_start_sdcard_monitor_fn`).
-* AVC denial log spoofing to maintain clean audit logs.
+| | |
+|---|---|
+| **Root** | KernelSU, built in — no flashing a Magisk-style module |
+| **Root hiding** | SUSFS, so banking apps and integrity checks have a much harder time spotting it |
+| **Compressed RAM** | ZRAM with LZ4KD, which keeps more RAM free than the stock compressible memory |
+| **Faster networking** | TCP BBR congestion control, CUBIC kept as the fallback |
+| **Cleaner mounts** | HybridMount VFS backend, so module mounts leave almost no trace in `/proc/mounts` |
+| **Matching version string** | Optionally makes `uname -r` report your stock kernel version, so apps that check it are less suspicious |
 
-### 3. Device Profile & Metadata Matching
-Ensures kernel version banners, build timestamps, and compiler identifiers seamlessly match configured OEM target profiles in `device-profiles.json` to prevent runtime environment mismatches.
+Everything is built from Google's official GKI source, so it should behave like
+a stock kernel apart from the features above.
 
-### 4. Performance & Networking
-* **TCP BBRv3 / BBR:** Google's Bottleneck Bandwidth and RTT congestion control algorithm for low-latency networking.
-* **ZRAM with LZ4KD Compression:** Accelerated page compression and decompression algorithms for smoother memory management.
-* **`CONFIG_TMPFS_XATTR=y` & `CONFIG_TMPFS_POSIX_ACL=y`:** Extended filesystem attribute support for modern Android containers.
-* **Baseband Guard (BBG):** Hardened radio interface protection.
-* **`CONFIG_KPM=y`:** In-kernel Kernel Patch Module runtime loader (SukiSU / ReSukiSU variants).
+> **New to custom kernels?** Flashing a custom kernel is not risk-free: it will
+> not survive an OTA update, and if you pick the wrong image you can soft-brick
+> your device. Back up your boot partition before you start, and read the
+> [After flashing](#after-flashing) section before rebooting.
 
 ---
 
-## 📥 Flashing & Verification
+## Quick start
 
-### Installation
-1. Download your preferred build artifact (`boot.img` or `AnyKernel3-*.zip`) from [GitHub Actions](https://github.com/nothingnesscore/BruhKernel/actions).
-2. **Flash via Fastboot:**
-   ```bash
-   fastboot flash boot boot.img
-   fastboot reboot
-   ```
-   *(Or flash the AnyKernel3 archive via Kernel Flasher).*
-3. Install the **[BruhMount](https://github.com/nothingnesscore/BruhMount)** metamodule to handle module redirection and automated SUSFS integration.
+You do not need this repository checked out. Everything happens on GitHub.
 
-### Verification
-Open a root shell and run:
+1. **Open the Actions tab** and run **Build BruhKernel**.
+2. **Accept the defaults.** They already target the POCO F6 / Redmi Turbo 3
+   (`android14-6.1`, sublevel `138`) with the SukiSU root variant.
+3. **Wait about 40 minutes.** Four variants compile in parallel, so it is one
+   wait, not four.
+4. **Download the artifact.** At the bottom of the run you will find something
+   like `6.1.138-android14-2025-06-SukiSU-AnyKernel3`. That is your kernel.
+5. **Flash it**, then reboot.
+
+To flash from a computer:
+
 ```bash
-# Verify kernel version
-uname -a
+fastboot flash boot boot.img
+fastboot reboot
+```
 
-# Verify the KSU variant and its version
-ksud --version
+Or flash the zip with **Kernel Flasher** or **MKernelFlasher** from your phone.
 
-# Verify safe mode is NOT spuriously engaged
-# (should print false; a stuck "true" here disables module flashing)
-ksud debug info | grep -i safemode
+To check it worked, open a root shell:
 
-# Verify SUSFS status and active features
-ksu_susfs show
+```bash
+uname -a          # should show your stock-looking kernel version
+ksud --version    # should report the variant you built
 ```
 
 ---
 
-## 🤝 Credits & Acknowledgments
+## Picking your target
 
-This project builds upon the work of the Android open-source kernel engineering community:
+The defaults are for `peridot`. If you have a different phone, work out which
+line you need and change two fields.
 
-* **[Enginex0](https://github.com/Enginex0):** Creator of **ZeroMount** and the original **Super-Builders** CI architecture, whose multi-variant compilation pipeline provided the bedrock for automated GKI builds.
-* **[simonpunk](https://gitlab.com/simonpunk/susfs4ksu):** Creator of **SUSFS**, the groundbreaking kernel-level file hiding and isolation framework.
-* **[maxsteeel](https://github.com/maxsteeel/nomount):** Creator of **NoMount**, the earlier zero-mount VFS backend this project moved on from.
-* **[Hybrid-Mount](https://github.com/Hybrid-Mount/meta-hybrid_mount):** Current in-kernel VFS redirection backend (`CONFIG_HYBRIDMOUNT=y`).
-* **[tiann](https://github.com/tiann):** Founder of **KernelSU**, revolutionizing kernel-based root on Android.
-* **[SukiSU-Ultra](https://github.com/SukiSU-Ultra) & [ReSukiSU](https://github.com/ReSukiSU):** For enhanced KernelSU variants with native SUSFS and KPM support.
-* **[KernelSU-Next](https://github.com/KernelSU-Next/KernelSU-Next) & [pershoot](https://github.com/pershoot):** For continuous upstream development and forward-looking GKI maintenance.
-* **[WildKernels](https://github.com/WildKernels):** For performance patches, TCP optimizations, and WildKSU.
-* **Google Android Open Source Project (AOSP):** For the Generic Kernel Image (GKI) initiative.
+| Field | What to put |
+|---|---|
+| **Kernel version directory** | Your Android version and kernel version, e.g. `android14-6.1` |
+| **Sublevel** | Your kernel's patch level, e.g. `138` |
+| **OS patch level** | The Android security patch month your sublevel shipped with, e.g. `2025-06` |
+
+How to find those numbers:
+
+```bash
+uname -r
+# 6.1.138-android14-11-g0c3d559bcd85-ab14529422
+#  ^--- ^--- ^--- ^--- ^----------------------------- Android version and sublevel
+```
+
+The last part is your security patch level. If the build rejects your numbers,
+the workflow prints the full list of valid combinations for that version — you
+cannot pick an invalid pair.
+
+| Version directory | Targets | Notes |
+|---|---|---|
+| `android12-5.4` | 1 | SukiSU and ReSukiSU only |
+| `android12-5.10` | 17 | |
+| `android13-5.10` | 37 | |
+| `android13-5.15` | 18 | |
+| `android14-5.15` | 13 | |
+| `android14-6.1` | 21 | **Reference device.** Best tested |
+| `android15-6.6` | 17 | |
+| `android16-6.12` | 5 | |
+
+The complete list of valid version/sublevel/patch combinations lives in
+[`.github/inputs/targets.json`](.github/inputs/targets.json), and the same file
+drives the validation step.
+
+**GKI only.** This does not work on a phone that ships a vendor-specific kernel
+with no GKI base. If `uname -r` shows a kernel that is not one of the eight
+versions above, this repository cannot help you.
 
 ---
 
-## ⚠️ Disclaimer
+## The build options, explained
 
-Flashing custom kernels involves low-level modifications. Always maintain backups of your device boot partitions before flashing.
+Every toggle has a sensible default. You can ignore all of them.
+
+| Option | Default | What it does |
+|---|---|---|
+| `add_susfs` | on | **Root hiding.** Hides root files, mount points, `/proc` entries and kernel symbols from apps. Turn this off if something breaks and you want to debug it. |
+| `add_zram` | on | **Compressed swap in RAM.** Replaces the stock ZRAM with an LZ4K/LZ4KD build that compresses better. |
+| `add_bbg` | on | **Baseband Guard.** Locks down the radio interface so more firmware is built into the kernel rather than a loadable module. |
+| `add_overlayfs_support` | on | **tmpfs extended attributes.** Required for modules to overlay files correctly. |
+| `add_kpm` | off | **Kernel Patch Module runtime.** Lets you load extra kernel patches at runtime without reflashing. Only SukiSU and ReSukiSU support it. |
+| `add_hybridmount_vfs` | on | **VFS redirection backend.** Keeps module mounts out of the mount tables. |
+| `device_codename` | `peridot` | Which device profile to copy the kernel version string from. Use `generic` to leave your real kernel version alone. |
+| `sukisu_commit` | empty | Pin a specific upstream root-solution commit instead of the tracked one. Leave empty unless you are testing a specific commit. |
+
+### About `device_codename`
+
+Some apps refuse to run when `uname -r` reports an unexpected kernel. The
+`peridot` profile makes the kernel report the exact version string your stock
+firmware used, including build date and compiler, so those checks stay quiet.
+
+This only applies when the sublevel matches the profile. For any other target
+the build falls back to `Generic` and leaves the version string alone — a
+deliberate trade, since a wrong spoof is more suspicious than no spoof.
+
+---
+
+## Choosing a root variant
+
+All four give you root with SUSFS. They differ in how close they track upstream
+and how much extra tuning they carry.
+
+| Variant | Best for | Notes |
+|---|---|---|
+| **SukiSU-Ultra** | **Most people.** Recommended default. | Tracks upstream KernelSU closely, supports KPM, actively maintained. |
+| **ReSukiSU** | Battery life and lighter background use. | Stripped-down SukiSU fork. |
+| **KernelSU-Next** | Long-running stable devices. | Conservative upstream fork. |
+| **WKSU** | Networking and throughput tuning. | Carries extra performance patches; most likely to need debugging. |
+
+Build one variant or all four. Pick a single one and you only wait for one
+compile instead of four.
+
+---
+
+## After flashing
+
+1. **Root is not finished until you install a manager.** The kernel provides
+   root; the app on your phone is what grants and revokes it. For SukiSU, install
+   the **SukiSU-Ultra manager** app.
+2. **Install the BruhMount metamodule.** SukiSU delegates module mounting to a
+   metamodule rather than doing it in the core. Without it, modules install but
+   do not take effect.
+3. **Reboot once more** after installing the manager.
+
+### Updating after an OTA
+
+An OTA overwrites your kernel and removes root. To avoid this, install the OTA
+to the *inactive* slot first, flash your kernel zip to that slot from the
+SukiSU manager's patching screen, then reboot into it.
+
+---
+
+## If something goes wrong
+
+**The manager shows a "safe mode" badge and module flashing is gone.**
+This used to be a real bug where three volume-down presses hours after boot
+could permanently trigger it. It is fixed, and the build now verifies the fix
+applied. If you still hit it, check with:
+
+```bash
+ksud debug info | grep -i safemode
+```
+
+If that says `true` on a freshly booted device, please open an issue.
+
+**The build fails at "Build Kernel".**
+The `Dump Build Errors` step pushes logs to the `debug-logs` branch of this
+repository. Also check the **Rejects** artifact in the run — if patch
+application left `.rej` files, the count appears in the job summary.
+
+**The phone will not boot.**
+Hold Volume Down while powering on to enter the system's own safe mode, which
+disables modules. If that does not help, flash your stock `boot.img` back over
+fastboot. This is why you keep a backup.
+
+**Root is granted but an app still sees it.**
+SUSFS hides a lot but not everything. Confirm the feature you need is enabled
+in your build with `ksu_susfs show`, and check the app is not using a kernel
+module you disabled.
+
+---
+
+## How the repository is laid out
+
+```
+BruhKernel/
+├── build.yml                    ← the only workflow you normally touch
+├── build-kernel.yml             ← the actual GKI builder (all 4 variants)
+├── .github/
+│   ├── inputs/
+│   │   ├── targets.json         ← valid version/sublevel combinations
+│   │   ├── variants.json        ← per-variant build parameters
+│   │   ├── samsung-devices.json ← Samsung device table
+│   │   └── bbk-devices.json     ← OnePlus/OPPO device table
+│   └── workflows/               ← plus the Samsung/BBK and dry-test flows
+├── android14-6.1/               ← one directory per GKI version
+│   ├── defconfig.fragment       ← which config options get enabled
+│   ├── build-helpers/           ← scripts that patch and configure the build
+│   ├── SukiSU-Ultra/patches/    ← SUSFS and safety patches
+│   ├── sukisu-pin.txt           ← which upstream commit this version tracks
+│   └── README.md                ← detailed config documentation
+├── zram/                        ← vendored LZ4 1.10.0
+├── manifests/bbk/               ← OnePlus/OPPO kernel manifests
+├── device-profiles.json         ← kernel version strings to spoof
+└── notes/                       ← gotchas we hit, so you do not have to
+```
+
+There are eight `android*` directories. Each is self-contained, which is why
+per-version fixes are never accidentally applied to a different kernel.
+
+---
+
+## What actually happens during a build
+
+If you want to modify this repo rather than just use it, here is the path:
+
+1. **Resolve.** `build.yml` validates your target against `targets.json` and
+   picks the variants to build. Failures happen here, immediately, with a
+   readable message — not twenty minutes into a kernel compile.
+2. **Fetch dependencies.** AnyKernel3, the WildKernels patch set, the
+   LZ4K/LZ4KD decompressors, and Google's `repo` launcher.
+3. **Sync the kernel.** `repo init` against Google's kernel manifest for your
+   exact sublevel, then a shallow sync. This is the slowest step and the bulk of
+   the wall-clock time.
+4. **Install the root solution.** Clone the chosen variant's repo at the commit
+   in that version's `*-pin.txt`.
+5. **Apply patches.** SUSFS (`50_`, `51_`), then the variant safety patch
+   (`70_`), then per-version compatibility fixes, then optional Baseband Guard,
+   LZ4 and HybridMount.
+6. **Configure.** Merge `defconfig.fragment` into the kernel's defconfig, force
+   ZRAM and tmpfs built-in, and strip anything the kernel does not declare.
+7. **Compile.** Bazel/Kleaf, or `build.sh` on older kernels.
+8. **Package.** Drop the `Image` into the AnyKernel3 zip and upload it.
+
+`ksu-upstream-monitor.yml` runs every six hours, checks each variant's upstream
+branch for new commits, updates the `*-pin.txt` files, and dispatches a build
+when something moves. Note that the seven versions other than `android14-6.1`
+track SukiSU's `builtin` branch rather than `main`, because that is the branch
+their builds were validated against.
+
+---
+
+## Other devices: Samsung and OnePlus/OPPO
+
+These are separate workflows because they work differently: they sync a
+**vendor** kernel tree rather than Google's public GKI source.
+
+| Workflow | Covers |
+|---|---|
+| `Samsung OEM - *` | 14 Samsung devices (S22–S25 Ultra, Z Fold, Tab S9, A54, A56, M14) |
+| `BBK OGKI - *` | OnePlus / OPPO / realme devices listed in `bbk-devices.json` (88 entries) |
+
+Run them directly from the Actions tab; they take a device key from the table
+in `.github/inputs/`.
+
+Be aware the BBK registry is aspirational: it lists 88 device keys, but only
+four kernel manifests are committed under [`manifests/bbk/`](manifests/bbk), and
+only **5 of the 88 keys** currently resolve to one — OnePlus 15 (two variants),
+15R, Ace 6 and Ace 6T. The rest will fail at manifest lookup. The Samsung
+flows are better covered.
+
+If you own one of these devices and want to help, those flows need more love
+than the GKI path — they are the least tested part of this repository.
+
+---
+
+## Contributing
+
+Patches and config changes are welcome, especially for devices other than
+`peridot`.
+
+Before opening a pull request:
+
+- **Run the dry test.** The `Dry Test Patches` workflow applies the patch set
+  and compiles without producing a flashable image. Much faster feedback than
+  a full build.
+- **Check your scripts parse:** `bash -n yourscript.sh`
+- **Check your workflow:** [`actionlint`](https://github.com/rhysd/actionlint)
+  catches expression and context errors that a YAML parser accepts silently.
+
+Two things worth reading in [`notes/agent-notes.md`](notes/agent-notes.md)
+before touching the workflows — both cost a full 40-minute build to diagnose:
+GitHub Actions boolean inputs are not null-safe, and a job-level `if:` cannot
+reference the `matrix` context.
+
+---
+
+## Credits
+
+This project stands on a lot of other people's work.
+
+- **[tiann / KernelSU](https://github.com/tiann/KernelSU)** — the root
+  architecture this is built around.
+- **[SukiSU-Ultra](https://github.com/SukiSU-Ultra/SukiSU-Ultra)** ·
+  **[ReSukiSU](https://github.com/ReSukiSU/ReSukiSU)** ·
+  **[KernelSU-Next](https://github.com/KernelSU-Next/KernelSU-Next)** ·
+  **[WildKSU](https://github.com/WildKernels/Wild_KSU)** — the root variants.
+- **[simonpunk / SUSFS](https://gitlab.com/simonpunk/susfs4ksu)** — root hiding.
+- **[Hybrid-Mount](https://github.com/Hybrid-Mount/meta-hybrid_mount)** — the
+  VFS redirection backend.
+- **[WildKernels](https://github.com/WildKernels)** — AnyKernel3 and the
+  performance patch set this builds on.
+- **[Enginex0](https://github.com/Enginex0)** — ZeroMount, and the Super-Builders
+  CI architecture the pipeline grew out of.
+- **[Yann Collet / LZ4](https://github.com/lz4/lz4)** — the compressor vendored
+  in `zram/`.
+- **[Google AOSP](https://source.android.com)** — the kernel source itself.
+
+If you are new to custom kernels, these projects have much more thorough
+documentation than this repository does.
+
+---
+
+## Licence
+
+**GPL-2.0-only.** The full text is in [LICENSE](LICENSE); provenance for
+vendored and build-time-fetched third-party code is in [NOTICE](NOTICE).
+
+Because the output is a modified Linux kernel, redistributing a built image
+means you must also offer the corresponding source and include the GPL-2.0
+text.
+
+---
+
+## Disclaimer
+
+Flashing custom kernels is inherently risky. This software is provided as-is,
+without warranty of any kind. You are responsible for your device. Keep a
+backup of your boot partition.
