@@ -18,15 +18,11 @@ permissions:
   actions: write
 
 on:
-  push:
-    branches: [main]
-    paths-ignore:
-      - '**.md'
-      - '**.txt'
-      - 'LICENSE'
-      - 'LICENSE.*'
-      - 'NOTICE'
-      - 'SPDX*'
+  # No `push` trigger. Building on every commit meant every README, licence or
+  # workflow edit burned four 40-minute runners, and it left the whole workflow
+  # validating against null inputs on a push event. Builds are now explicit:
+  # dispatch this workflow, or let the upstream monitor dispatch it when a
+  # KernelSU pin changes.
   workflow_dispatch:
     inputs:
       kernel_version_dir:
@@ -254,12 +250,15 @@ jobs:
       kernel_version: ${{ needs.resolve.outputs.kernel_version }}
       sub_level: ${{ inputs.sub_level }}
       os_patch_level: ${{ inputs.os_patch_level }}
-      add_susfs: ${{ github.event_name != 'workflow_dispatch' || inputs.add_susfs }}
-      add_zram: ${{ github.event_name != 'workflow_dispatch' || inputs.add_zram }}
-      add_bbg: ${{ github.event_name != 'workflow_dispatch' || inputs.add_bbg }}
-      add_overlayfs_support: ${{ github.event_name != 'workflow_dispatch' || inputs.add_overlayfs_support }}
-      add_kpm: ${{ github.event_name == 'workflow_dispatch' && inputs.add_kpm || false }}
-      add_hybridmount_vfs: ${{ github.event_name != 'workflow_dispatch' || inputs.add_hybridmount_vfs }}
+      # Plain pass-through: this workflow only runs on workflow_dispatch, so
+      # every input is populated. The event_name guards that were here before
+      # only existed to survive a push trigger and are no longer needed.
+      add_susfs: ${{ inputs.add_susfs }}
+      add_zram: ${{ inputs.add_zram }}
+      add_bbg: ${{ inputs.add_bbg }}
+      add_overlayfs_support: ${{ inputs.add_overlayfs_support }}
+      add_kpm: ${{ inputs.add_kpm }}
+      add_hybridmount_vfs: ${{ inputs.add_hybridmount_vfs }}
       sukisu_commit: ${{ inputs.sukisu_commit }}
-      device_codename: ${{ github.event_name != 'workflow_dispatch' || inputs.device_codename }}
+      device_codename: ${{ inputs.device_codename }}
       matrix: ${{ needs.resolve.outputs.matrix }}
