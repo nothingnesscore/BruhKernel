@@ -454,6 +454,7 @@ jobs:
       add_bbg: true
       add_overlayfs_support: true
       add_kpm: ${{ inputs.add_kpm || false }}
+      add_hybridmount_vfs: ${{ inputs.add_hybridmount_vfs }}
       sukisu_commit: ''
       device_codename: ${{ needs.resolve.outputs.device_codename }}
 
@@ -471,6 +472,7 @@ jobs:
       add_bbg: true
       add_overlayfs_support: true
       add_kpm: false
+      add_hybridmount_vfs: ${{ inputs.add_hybridmount_vfs }}
       sukisu_commit: ''
       device_codename: ${{ needs.resolve.outputs.device_codename }}
 
@@ -488,6 +490,7 @@ jobs:
       add_bbg: true
       add_overlayfs_support: true
       add_kpm: ${{ inputs.add_kpm || false }}
+      add_hybridmount_vfs: ${{ inputs.add_hybridmount_vfs }}
       sukisu_commit: ''
       device_codename: ${{ needs.resolve.outputs.device_codename }}
 
@@ -505,5 +508,6 @@ jobs:
       add_bbg: true
       add_overlayfs_support: true
       add_kpm: false
+      add_hybridmount_vfs: ${{ inputs.add_hybridmount_vfs }}
       sukisu_commit: ''
       device_codename: ${{ needs.resolve.outputs.device_codename }}
