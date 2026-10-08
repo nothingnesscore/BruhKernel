@@ -106,6 +106,7 @@ jobs:
       kernel_version: ${{ steps.parse.outputs.kernel_version }}
       version_dir: ${{ steps.parse.outputs.version_dir }}
       variants: ${{ steps.variants.outputs.list }}
+      matrix: ${{ steps.variants.outputs.matrix }}
     steps:
       - name: Parse inputs
         id: parse
@@ -170,29 +171,50 @@ jobs:
           VD: ${{ inputs.kernel_version_dir }}
         run: |
           set -euo pipefail
-          REGISTRY="$GITHUB_WORKSPACE/.github/inputs/targets.json"
+          TARGETS="$GITHUB_WORKSPACE/.github/inputs/targets.json"
+          VARIANTS="$GITHUB_WORKSPACE/.github/inputs/variants.json"
 
           # Not every version ships every variant: android12-5.4 has only the
-          # SukiSU and ReSukiSU pins.
-          SUPPORTED=$(jq -r --arg vd "$VD" '.[$vd].variants[]?' "$REGISTRY")
+          # SukiSU and ReSukiSU pins. Only CR is stripped, not all whitespace:
+          # [:space:] would also remove the newlines that separate the names.
+          SUPPORTED=$(jq -r --arg vd "$VD" '.[$vd].variants[]?' "$TARGETS" | tr -d '\r')
           if [ -z "$SUPPORTED" ]; then
             echo "::error::No variants registered for $VD"
             exit 1
           fi
 
           if [ "$REQUESTED" = "All" ]; then
-            LIST="$SUPPORTED"
+            NAMES=()
+            while IFS= read -r v; do [ -n "$v" ] && NAMES+=("$v"); done <<< "$SUPPORTED"
           elif grep -qxF "$REQUESTED" <<< "$SUPPORTED"; then
-            LIST="$REQUESTED"
+            NAMES=("$REQUESTED")
           else
             echo "::error::$REQUESTED is not available for $VD."
             echo "Available: $(tr '\n' ' ' <<< "$SUPPORTED")"
             exit 1
           fi
 
-          echo "Building: $(tr '\n' ' ' <<< "$LIST")"
+          # Emit the full parameter objects, not just names: the builder reads
+          # matrix.variant.<field> for repo, pin, fragment and so on.
+          #
+          # `.[$names]` cannot be used: variants.json is an object, and indexing
+          # an object with an array is an error. map($o[.]) walks the names
+          # instead. jq --args is avoided for the same reason it breaks above -
+          # it would consume the input filename as a positional string.
+          CSV=$(IFS=,; echo "${NAMES[*]}")
+          MATRIX=$(jq -c --arg csv "$CSV" \
+            '. as $o | ($csv | split(",")) | map($o[.])' "$VARIANTS")
+          COUNT=$(jq 'length' <<< "$MATRIX")
+          if [ "$COUNT" -eq 0 ]; then
+            echo "::error::Variant selection produced an empty matrix"
+            exit 1
+          fi
+
+          echo "Building $COUNT variant(s): $(tr '\n' ' ' <<< "${NAMES[*]}")"
+          echo "Matrix: $MATRIX"
           {
-            echo "list=$(tr '\n' ',' <<< "$LIST" | sed 's/,$//')"
+            echo "list=$CSV"
+            echo "matrix=$MATRIX"
           } >> "$GITHUB_OUTPUT"
 
       - name: Summary
@@ -240,4 +262,4 @@ jobs:
       add_hybridmount_vfs: ${{ github.event_name != 'workflow_dispatch' || inputs.add_hybridmount_vfs }}
       sukisu_commit: ${{ inputs.sukisu_commit }}
       device_codename: ${{ github.event_name != 'workflow_dispatch' || inputs.device_codename }}
-      variants: ${{ needs.resolve.outputs.variants }}
+      matrix: ${{ needs.resolve.outputs.matrix }}

@@ -32,6 +32,30 @@ add_hybridmount_vfs: ${{ github.event_name != 'workflow_dispatch' || inputs.add_
 `add_kpm` uses the simpler `${{ inputs.add_kpm || false }}` because its default
 is false.
 
+### A job-level `if:` cannot use the `matrix` context
+
+The obvious way to build a subset of a matrix is:
+
+```yaml
+    if: contains(inputs.variants, matrix.variant.name)
+```
+
+That does not work. `matrix` only exists *after* the matrix has expanded, so it
+is unavailable in a job-level `if`. GitHub rejects the whole workflow at
+validation and the run produces **zero jobs** - not a skipped job, and no
+message on any job, because there is no job to attach one to.
+
+Two traps on top of it:
+
+- `contains()` is a substring test, so `contains('ReSukiSU', 'SukiSU')` is
+  true and asking for ReSukiSU would also build SukiSU. Wrap both sides in
+  delimiters: `contains(format(',{0},', list), format(',{0},', name))`.
+- Even with the delimiter fix, build the matrix in a caller job and pass it as
+  JSON instead: `matrix: variant: ${{ fromJSON(inputs.matrix) }}`.
+
+This is worth checking with `actionlint` rather than reasoning about, because
+PyYAML parses the file happily and only `actionlint` reports the context error.
+
 ### Forcing a config symbol to `=y` can orphan its .ko
 
 `CONFIG_ZRAM=y` stops `zram.ko` being produced, but GKI's module manifest still

@@ -1,0 +1,59 @@
+{
+  "_comment": "Per-variant build parameters. build.yml selects from this and hands the chosen entries to build-kernel.yml as a JSON matrix. Kept out of YAML because a matrix cannot be filtered with a job-level `if:` - the `matrix` context does not exist yet at that point.",
+  "SukiSU": {
+    "name": "SukiSU",
+    "repo": "SukiSU-Ultra/SukiSU-Ultra",
+    "setup_raw": "main",
+    "setup_branch": "builtin",
+    "dir": "KernelSU",
+    "pin": "sukisu-pin.txt",
+    "patchdir": "SukiSU-Ultra",
+    "safety": "sukisu",
+    "fragment": "sukisu_gki",
+    "suffix": "SukiSU",
+    "kbuild_fix": false,
+    "supports_kpm": true
+  },
+  "ReSukiSU": {
+    "name": "ReSukiSU",
+    "repo": "ReSukiSU/ReSukiSU",
+    "setup_raw": "main",
+    "setup_branch": "susfs-ksud",
+    "dir": "KernelSU",
+    "pin": "resukisu-pin.txt",
+    "patchdir": "ReSukiSU",
+    "safety": "resukisu",
+    "fragment": "sukisu_gki",
+    "suffix": "ReSukiSU",
+    "kbuild_fix": true,
+    "supports_kpm": true
+  },
+  "KernelSU-Next": {
+    "name": "KernelSU-Next",
+    "repo": "KernelSU-Next/KernelSU-Next",
+    "setup_raw": "next",
+    "setup_branch": "next",
+    "dir": "KernelSU-Next",
+    "pin": "kernelsu-next-pin.txt",
+    "patchdir": "KernelSU-Next",
+    "safety": "kernelsu-next",
+    "fragment": "sukisu_gki",
+    "suffix": "KernelSU-Next",
+    "kbuild_fix": false,
+    "supports_kpm": false
+  },
+  "WKSU": {
+    "name": "WKSU",
+    "repo": "WildKernels/Wild_KSU",
+    "setup_raw": "stable",
+    "setup_branch": "canary",
+    "dir": "Wild_KSU",
+    "pin": "wksu-pin.txt",
+    "patchdir": "WildKSU",
+    "safety": "wksu",
+    "fragment": "wild_gki",
+    "suffix": "Wild",
+    "kbuild_fix": false,
+    "supports_kpm": false
+  }
+}

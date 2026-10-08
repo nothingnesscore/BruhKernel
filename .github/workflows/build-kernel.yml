@@ -26,10 +26,12 @@ on:
       os_patch_level:
         type: string
         required: true
-      variants:
-        description: "Comma-separated list of variants to build"
+      matrix:
+        description: >-
+          JSON array of variant objects, selected by the caller from
+          .github/inputs/variants.json.
         type: string
-        default: "SukiSU,ReSukiSU,KernelSU-Next,WKSU"
+        required: true
       add_susfs:
         type: boolean
         default: true
@@ -64,65 +66,19 @@ on:
 jobs:
   build:
     name: "${{ matrix.variant.name }} ${{ inputs.kernel_version }}.${{ inputs.sub_level }}"
-    # The matrix declares all four so the values stay in one place, but a
-    # matrix job cannot be conditionally excluded without re-evaluating the
-    # list per event. Instead each leg checks membership here.
+    # The variant list is computed by the caller and handed over as JSON.
     #
-    # The list is delimiter-wrapped on both sides: a bare
-    # contains(inputs.variants, matrix.variant.name) would be a substring test,
-    # and "SukiSU" is a substring of "ReSukiSU", so asking for ReSukiSU would
-    # also build SukiSU.
-    if: contains(format(',{0},', inputs.variants), format(',{0},', matrix.variant.name))
+    # This used to be a static four-entry matrix plus a job-level
+    # `if: contains(...)` gate, which does not work: the `matrix` context is not
+    # available in a job-level `if`, because the matrix has not expanded yet.
+    # GitHub rejects the whole workflow at validation, so the run produces zero
+    # jobs rather than skipping anything.
     runs-on: ubuntu-latest
     timeout-minutes: 60
     strategy:
       fail-fast: false
       matrix:
-        variant:
-          - name: SukiSU
-            repo: SukiSU-Ultra/SukiSU-Ultra
-            setup_raw: main
-            setup_branch: builtin
-            dir: KernelSU
-            pin: sukisu-pin.txt
-            patchdir: SukiSU-Ultra
-            safety: sukisu
-            fragment: sukisu_gki
-            suffix: SukiSU
-            kbuild_fix: false
-          - name: ReSukiSU
-            repo: ReSukiSU/ReSukiSU
-            setup_raw: main
-            setup_branch: susfs-ksud
-            dir: KernelSU
-            pin: resukisu-pin.txt
-            patchdir: ReSukiSU
-            safety: resukisu
-            fragment: sukisu_gki
-            suffix: ReSukiSU
-            kbuild_fix: true
-          - name: KernelSU-Next
-            repo: KernelSU-Next/KernelSU-Next
-            setup_raw: next
-            setup_branch: next
-            dir: KernelSU-Next
-            pin: kernelsu-next-pin.txt
-            patchdir: KernelSU-Next
-            safety: kernelsu-next
-            fragment: sukisu_gki
-            suffix: KernelSU-Next
-            kbuild_fix: false
-          - name: WKSU
-            repo: WildKernels/Wild_KSU
-            setup_raw: stable
-            setup_branch: canary
-            dir: Wild_KSU
-            pin: wksu-pin.txt
-            patchdir: WildKSU
-            safety: wksu
-            fragment: wild_gki
-            suffix: Wild
-            kbuild_fix: false
+        variant: ${{ fromJSON(inputs.matrix) }}
     env:
       KSU_VARIANT: ${{ matrix.variant.name }}
       KSU_DIR: ${{ matrix.variant.dir }}
@@ -611,8 +567,8 @@ jobs:
       with:
         name: ${{ env.FILE_NAME }}-AnyKernel3
         path: ./AnyKernel3/**
-      if-no-files-found: error
-      compression-level: 9
+        if-no-files-found: error
+        compression-level: 9
 
     - name: Upload Rejects
       if: always() && env.REJ_COUNT > 0
@@ -620,8 +576,8 @@ jobs:
       with:
         name: ${{ env.FILE_NAME }}-Rejects
         path: patch-rejects/
-      if-no-files-found: ignore
-      compression-level: 9
+        if-no-files-found: ignore
+        compression-level: 9
 
     - name: Job Summary
       if: always()
