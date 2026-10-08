@@ -10,6 +10,10 @@ on:
     paths-ignore:
       - '**.md'
       - '**.txt'
+      - 'LICENSE'
+      - 'LICENSE.*'
+      - 'NOTICE'
+      - 'SPDX*'
   workflow_dispatch:
     inputs:
       kernel_target:

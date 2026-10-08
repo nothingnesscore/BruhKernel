@@ -1,0 +1,92 @@
+BruhKernel
+Copyright (C) 2026 nothingnesscore
+
+This project is licensed under the GNU General Public License, version 2.
+The full text is in the LICENSE file at the repository root.
+
+SPDX-License-Identifier: GPL-2.0-only
+
+
+WHY GPL-2.0
+------------
+
+The Linux kernel, which this project builds, is GPL-2.0. The output of this
+repository is a modified kernel image, so the build scripts, configuration and
+patches here are distributed under the same terms.
+
+You must include a copy of the GPL-2.0 when redistributing built images or
+modified binaries, and offer the corresponding source. Nothing in this license
+grants permission to ship a closed-source kernel that links these patches.
+
+
+VENDORED THIRD-PARTY CODE
+-------------------------
+
+zram/lz4/ and zram/include/linux/lz4.h
+    LZ4 v1.10.0, Copyright (C) 2011-2023 Yann Collet.
+    BSD 2-Clause License. The upstream header is retained verbatim in each
+    source file. See https://github.com/lz4/lz4
+
+    These replace the kernel's bundled lib/lz4 at build time so that the
+    LZ4K / LZ4KD decompressors used for ZRAM can be built.
+
+
+PATCHES AND CODE FETCHED AT BUILD TIME
+--------------------------------------
+
+Nothing below is vendored into this repository. Each is downloaded by the
+workflows at build time and remains under its own license.
+
+Linux kernel (GPL-2.0)
+    https://android.googlesource.com/kernel/manifest
+
+SUSFS (GPL-2.0)
+    https://gitlab.com/simonpunk/susfs4ksu
+    Applied as the 50_add_susfs_in_gki-*.patch patch sets. These patches are
+    BruhKernel's own packaging of upstream SUSFS and the 51_enhanced_susfs-*
+    enhancements layered on top of it.
+
+SukiSU-Ultra (GPL-3.0)   https://github.com/SukiSU-Ultra/SukiSU-Ultra
+ReSukiSU (GPL-3.0)       https://github.com/ReSukiSU/ReSukiSU
+KernelSU-Next (GPL-3.0)  https://github.com/KernelSU-Next/KernelSU-Next
+Wild_KSU / WildKernels   https://github.com/WildKernels/Wild_KSU
+
+    GPL-3.0 components are consumed as separate kernel modules built against
+    the kernel tree. They are not linked into the scripts in this repository,
+    so the GPL-2.0 terms here do not extend to them.
+
+Hybrid-Mount (VFS backend)
+    https://github.com/Hybrid-Mount/meta-hybrid_mount
+
+Baseband Guard
+    https://github.com/vc-teahouse/Baseband-guard
+
+WildKernels/kernel_patches
+    https://github.com/WildKernels/kernel_patches
+
+AnyKernel3
+    https://github.com/WildKernels/AnyKernel3
+
+ShirkNeko/SukiSU_patch (LZ4K / LZ4KD zram decompressors)
+    https://github.com/ShirkNeko/SukiSU_patch
+
+Google `repo` launcher (Apache-2.0)
+    https://android.googlesource.com/tools/repo
+
+
+DEVICE-SPECIFIC PATCHES
+-----------------------
+
+samsung-fixes/ and manifests/bbk/ contain device and vendor-kernel fixes for
+hardware other than the reference device. Those fixes are covered by this
+GPL-2.0 license unless a file states otherwise. Redistribution of a kernel
+built for a particular device may also be subject to that vendor's terms.
+
+
+TRADEMARKS
+----------
+
+Android, Pixel, Samsung, Xiaomi, POCO, Redmi, OnePlus and OnePlus-family
+product names are trademarks of their respective owners. This project is not
+affiliated with or endorsed by them. The kernel images produced here are
+unofficial and are not certified devices.
