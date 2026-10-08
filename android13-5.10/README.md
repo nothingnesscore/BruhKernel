@@ -76,18 +76,18 @@ Every toggle here depends on `CONFIG_KSU_SUSFS=y`. Disable the master toggle and
 | `CONFIG_KSU_SUSFS_SUS_PATH` | y | Files and directories vanish from `readdir` and path lookups. Set to `n` on 6.12 (AS_FLAGS bit collision). Absent on 6.6. |
 | `CONFIG_KSU_SUSFS_SUS_MOUNT` | y | Mount entries filtered from `/proc/PID/mountinfo`. |
 | `CONFIG_KSU_SUSFS_SUS_KSTAT` | y | `stat()`/`fstat()`/`lstat()` return spoofed metadata (inode, device, timestamps). |
-| `CONFIG_KSU_SUSFS_SUS_KSTAT_REDIRECT` | y | Maps virtual-path stat to real-file metadata. Used by ZeroMount. |
+| `CONFIG_KSU_SUSFS_SUS_KSTAT_REDIRECT` | y | Maps virtual-path stat to real-file metadata. |
 | `CONFIG_KSU_SUSFS_SUS_MAP` | y | `/proc/PID/maps` and `/proc/PID/mem` entries hidden for flagged inodes. |
 | `CONFIG_KSU_SUSFS_SPOOF_UNAME` | y | `uname -r` returns a stock-looking kernel version string. |
 | `CONFIG_KSU_SUSFS_ENABLE_LOG` | y | SUSFS debug logging to dmesg. Disable for production if log noise matters. |
 | `CONFIG_KSU_SUSFS_SPOOF_CMDLINE_OR_BOOTCONFIG` | y | `/proc/cmdline` and `/proc/bootconfig` show clean boot state. |
 | `CONFIG_KSU_SUSFS_OPEN_REDIRECT` | y | File open operations redirected to alternate paths. |
-| `CONFIG_KSU_SUSFS_HIDE_KSU_SUSFS_SYMBOLS` | y | SUSFS and ZeroMount symbols hidden from `/proc/kallsyms`. |
+| `CONFIG_KSU_SUSFS_HIDE_KSU_SUSFS_SYMBOLS` | y | SUSFS and mount-backend symbols hidden from `/proc/kallsyms`. |
 | `CONFIG_KSU_SUSFS_UNICODE_FILTER` | y | Blocks invisible/confusable unicode characters in filesystem paths. |
 | `CONFIG_KSU_SUSFS_AUTO_ADD_SUS_KSU_DEFAULT_MOUNT` | y | Auto-adds KSU default mounts to the hidden mount list. |
 | `CONFIG_KSU_SUSFS_AUTO_ADD_SUS_BIND_MOUNT` | y | Auto-adds bind mounts to the hidden mount list. |
-| `CONFIG_KSU_SUSFS_HIDDEN_NAME` | y | Hidden name/inode hash tables + VFS hooks. **5.10 only.** |
-| `CONFIG_KSU_SUSFS_HARDENED` | y | Additional hardening checks. **5.10 only.** |
+| `CONFIG_KSU_SUSFS_HIDDEN_NAME` | y | Hidden name/inode hash tables + VFS hooks. Set on the 5.10 and 5.15 targets. |
+| `CONFIG_KSU_SUSFS_HARDENED` | y | Additional hardening checks. Set on the 5.10 and 5.15 targets. |
 
 ### [zram]
 
@@ -115,6 +115,14 @@ CONFIG_KPM=y
 ```
 
 Kernel Patch Manager. Enables runtime kernel patching support.
+
+### [hybridmount]
+
+```
+CONFIG_HYBRIDMOUNT=y
+```
+
+In-kernel VFS redirection backend, fetched from [Hybrid-Mount](https://github.com/Hybrid-Mount/meta-hybrid_mount) at build time. This replaced NoMount: there is no `CONFIG_NOMOUNT` or `CONFIG_ZEROMOUNT` symbol in any fragment. Module mounting itself is delegated to the installed metamodule, so install/update BruhMount when upgrading from an older build.
 
 ---
 

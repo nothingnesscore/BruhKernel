@@ -1,12 +1,12 @@
 # ⚡ BruhKernel
 
 > **Automated Custom GKI Kernel Build Pipeline**  
-> *Reproducible, High-Performance GKI 2.0 Kernels with Native VFS Redirection & SUSFS*
+> *Reproducible, High-Performance GKI 2.0 Kernels with HybridMount VFS Redirection & SUSFS*
 
 [![CI Build](https://github.com/nothingnesscore/BruhKernel/actions/workflows/kernel-custom.yml/badge.svg)](https://github.com/nothingnesscore/BruhKernel/actions/workflows/kernel-custom.yml)
 [![Kernel: GKI 6.1](https://img.shields.io/badge/Kernel-GKI%206.1-orange.svg)](https://android.googlesource.com/kernel/common)
 [![Platform: Android](https://img.shields.io/badge/Platform-Android%2012--16-blue.svg)](https://source.android.com)
-[![VFS: NoMount](https://img.shields.io/badge/VFS-NoMount%20(Native)-red.svg)](https://github.com/maxsteeel/nomount)
+[![VFS: HybridMount](https://img.shields.io/badge/VFS-HybridMount-red.svg)](https://github.com/Hybrid-Mount/meta-hybrid_mount)
 [![Root Hiding: SUSFS](https://img.shields.io/badge/Root%20Hiding-SUSFS%20(v1.5.0--v2.3.0%2B)-purple.svg)](https://gitlab.com/simonpunk/susfs4ksu)
 
 ---
@@ -57,18 +57,20 @@ This means the kernel version banner (`uname -r`), build timestamp, and compiler
 
 **BruhKernel** is an automated GKI (Generic Kernel Image) build pipeline designed for modern Android 12 – 16 devices running common GKI kernels (with profiles for Android 14 Kernel 6.1).
 
-It combines modern kernel root solutions with native **in-kernel VFS path redirection (NoMount)** and **SUSFS (v1.5.0 – v2.3.0+) root isolation**, providing an ultra-clean environment where module modifications are transparent and leave zero mount table artifacts.
+It combines modern kernel root solutions with an in-kernel **VFS path redirection backend (HybridMount, `CONFIG_HYBRIDMOUNT=y`)** and **SUSFS (v1.5.0 – v2.3.0+) root isolation**, providing an ultra-clean environment where module modifications are transparent and leave few mount table artifacts.
 
 ---
 
-## 💡 Architectural Decisions: Why NoMount Instead of ZeroMount?
+## 💡 Architectural Decisions: VFS Backend History
 
-Earlier iterations of custom GKI builders incorporated **ZeroMount** (`60_zeromount` patches modifying `fs/overlayfs`). While functional, ZeroMount relied on overlayfs hooks and `/dev` ioctl communication.
+Earlier iterations used **ZeroMount** (`60_zeromount` patches modifying `fs/overlayfs`), which relied on overlayfs hooks and `/dev` ioctl communication, and then **NoMount** (`CONFIG_NOMOUNT=y`), which redirected paths through the kernel keyring with no `/dev` nodes at all.
 
-**BruhKernel transitions to native NoMount (`CONFIG_NOMOUNT=y`):**
-* **Zero Mount Pollution:** Operates purely in RAM by intercepting directory operations and path resolution within kernel caches. It generates **0 entries** in `/proc/mounts` and `/proc/self/mountinfo`.
-* **Zero `/dev` Nodes:** All communication between userspace and the kernel is handled via the Linux Kernel Keyring subsystem (`SYS_add_key`), eliminating detectable device nodes.
-* **Lean & Conflict-Free:** With NoMount integrated natively, we eliminate redundant overlayfs hooks and keep the kernel lean, stable, and conflict-free.
+**BruhKernel now builds HybridMount** (`CONFIG_HYBRIDMOUNT=y`, from [Hybrid-Mount](https://github.com/Hybrid-Mount/meta-hybrid_mount)):
+* **No redundant overlayfs hooks:** the backend is added directly to `common/` rather than layered on top of `fs/overlayfs`.
+* **Kernel-assisted module redirection:** SukiSU delegates all module mounting to the installed metamodule, and HybridMount provides the VFS layer underneath it.
+* **Lean & Conflict-Free:** no `CONFIG_NOMOUNT` or `CONFIG_ZEROMOUNT` symbol remains in any `defconfig.fragment`.
+
+If you are upgrading from an older NoMount build, expect to install or update the **BruhMount** metamodule (see [Flashing](#-flashing--verification)) — module redirection is handled by the metamodule, not by the core.
 
 ---
 
@@ -115,8 +117,12 @@ Open a root shell and run:
 # Verify kernel version
 uname -a
 
-# Verify built-in NoMount engine
-nm version
+# Verify the KSU variant and its version
+ksud --version
+
+# Verify safe mode is NOT spuriously engaged
+# (should print false; a stuck "true" here disables module flashing)
+ksud debug info | grep -i safemode
 
 # Verify SUSFS status and active features
 ksu_susfs show
@@ -130,7 +136,8 @@ This project builds upon the work of the Android open-source kernel engineering 
 
 * **[Enginex0](https://github.com/Enginex0):** Creator of **ZeroMount** and the original **Super-Builders** CI architecture, whose multi-variant compilation pipeline provided the bedrock for automated GKI builds.
 * **[simonpunk](https://gitlab.com/simonpunk/susfs4ksu):** Creator of **SUSFS**, the groundbreaking kernel-level file hiding and isolation framework.
-* **[maxsteeel](https://github.com/maxsteeel/nomount):** Creator of **NoMount**, pioneering zero-mount VFS path redirection via Linux Keyring IPC.
+* **[maxsteeel](https://github.com/maxsteeel/nomount):** Creator of **NoMount**, the earlier zero-mount VFS backend this project moved on from.
+* **[Hybrid-Mount](https://github.com/Hybrid-Mount/meta-hybrid_mount):** Current in-kernel VFS redirection backend (`CONFIG_HYBRIDMOUNT=y`).
 * **[tiann](https://github.com/tiann):** Founder of **KernelSU**, revolutionizing kernel-based root on Android.
 * **[SukiSU-Ultra](https://github.com/SukiSU-Ultra) & [ReSukiSU](https://github.com/ReSukiSU):** For enhanced KernelSU variants with native SUSFS and KPM support.
 * **[KernelSU-Next](https://github.com/KernelSU-Next/KernelSU-Next) & [pershoot](https://github.com/pershoot):** For continuous upstream development and forward-looking GKI maintenance.
