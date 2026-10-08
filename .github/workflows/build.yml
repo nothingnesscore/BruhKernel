@@ -1,0 +1,243 @@
+name: "Build BruhKernel"
+
+# Single entry point for GKI builds.
+#
+# This replaces eleven files: kernel-custom.yml, main.yml and the eight
+# kernel-a*.yml wrappers. All of them did the same three things - resolve a
+# target, fan out to the four variant builders, download dependencies - with
+# the per-version sublevel lists and input defaults retyped into each copy.
+# Those lists now live in .github/inputs/targets.json, and the four variant
+# builders collapsed into build-kernel.yml.
+#
+# Vendor/OEM device flows are intentionally separate: build-samsung-*.yml and
+# build-bbk-*.yml sync a vendor kernel tree rather than upstream GKI, so they
+# are a different shape of problem and are still dispatchable on their own.
+
+permissions:
+  contents: write
+  actions: write
+
+on:
+  push:
+    branches: [main]
+    paths-ignore:
+      - '**.md'
+      - '**.txt'
+      - 'LICENSE'
+      - 'LICENSE.*'
+      - 'NOTICE'
+      - 'SPDX*'
+  workflow_dispatch:
+    inputs:
+      kernel_version_dir:
+        description: "Kernel version directory (android version + kernel version)"
+        type: choice
+        default: "android14-6.1"
+        options:
+          - "android12-5.4"
+          - "android12-5.10"
+          - "android13-5.10"
+          - "android13-5.15"
+          - "android14-5.15"
+          - "android14-6.1"
+          - "android15-6.6"
+          - "android16-6.12"
+      sub_level:
+        description: "Kernel sublevel (Linux patch level, e.g. 138)"
+        type: string
+        default: "138"
+      os_patch_level:
+        description: "Android security patch level of that sublevel (e.g. 2025-06)"
+        type: string
+        default: "2025-06"
+      ksu_variant:
+        description: "KernelSU variant"
+        type: choice
+        default: "SukiSU"
+        options:
+          - SukiSU
+          - ReSukiSU
+          - KernelSU-Next
+          - WKSU
+          - All
+      add_susfs:
+        description: "Add SUSFS root-hiding"
+        type: boolean
+        default: true
+      add_zram:
+        description: "Add ZRAM with LZ4K/LZ4KD compression"
+        type: boolean
+        default: true
+      add_bbg:
+        description: "Add Baseband Guard"
+        type: boolean
+        default: true
+      add_overlayfs_support:
+        description: "Add tmpfs xattr and POSIX ACL (needed by module overlays)"
+        type: boolean
+        default: true
+      add_kpm:
+        description: "Add KPM (SukiSU and ReSukiSU only)"
+        type: boolean
+        default: false
+      add_hybridmount_vfs:
+        description: "Add HybridMount VFS backend"
+        type: boolean
+        default: true
+      device_codename:
+        description: "Device profile for kernel string matching (generic = no spoofing)"
+        type: choice
+        default: "peridot"
+        options:
+          - peridot
+          - generic
+      sukisu_commit:
+        description: "Pin a specific upstream commit (empty = use *-pin.txt)"
+        type: string
+        default: ""
+
+jobs:
+  resolve:
+    name: Resolve target
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    outputs:
+      android_version: ${{ steps.parse.outputs.android_version }}
+      kernel_version: ${{ steps.parse.outputs.kernel_version }}
+      version_dir: ${{ steps.parse.outputs.version_dir }}
+      variants: ${{ steps.variants.outputs.list }}
+    steps:
+      - name: Parse inputs
+        id: parse
+        run: |
+          set -euo pipefail
+          VD="${{ inputs.kernel_version_dir }}"
+
+          if [[ ! "$VD" =~ ^(android[0-9]+)-([0-9]+\.[0-9]+)$ ]]; then
+            echo "::error::kernel_version_dir must look like androidNN-K.V (got '$VD')"
+            exit 1
+          fi
+
+          ANDROID="${BASH_REMATCH[1]}"
+          KERNEL="${BASH_REMATCH[2]}"
+
+          {
+            echo "android_version=$ANDROID"
+            echo "kernel_version=$KERNEL"
+            echo "version_dir=$VD"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Validate target against registry
+        run: |
+          set -euo pipefail
+          REGISTRY="$GITHUB_WORKSPACE/.github/inputs/targets.json"
+          VD="${{ inputs.kernel_version_dir }}"
+          SL="${{ inputs.sub_level }}"
+          SPL="${{ inputs.os_patch_level }}"
+
+          if [ ! -f "$REGISTRY" ]; then
+            echo "::error::targets.json missing"
+            exit 1
+          fi
+
+          KNOWN=$(jq -r --arg vd "$VD" --arg sl "$SL" --arg spl "$SPL" \
+            '.[$vd].targets[]? | select(.sub_level == $sl and .os_patch_level == $spl) | .sub_level' \
+            "$REGISTRY" || true)
+
+          if [ -z "$KNOWN" ]; then
+            echo "::error::$VD.$SL ($SPL) is not a registered target."
+            echo ""
+            echo "Registered sublevels for $VD:"
+            jq -r --arg vd "$VD" '.[$vd].targets[]? | "  \(.sub_level)  (\(.os_patch_level))"' "$REGISTRY"
+            exit 1
+          fi
+          echo "Target $VD.$SL ($SPL) is registered."
+
+      - name: Check directory exists
+        run: |
+          set -euo pipefail
+          VD="${{ inputs.kernel_version_dir }}"
+          if [ ! -d "$GITHUB_WORKSPACE/$VD" ]; then
+            echo "::error::Directory $VD not found in the repository"
+            exit 1
+          fi
+          echo "Directory $VD present."
+
+      - name: Resolve variants
+        id: variants
+        env:
+          REQUESTED: ${{ inputs.ksu_variant }}
+          VD: ${{ inputs.kernel_version_dir }}
+        run: |
+          set -euo pipefail
+          REGISTRY="$GITHUB_WORKSPACE/.github/inputs/targets.json"
+
+          # Not every version ships every variant: android12-5.4 has only the
+          # SukiSU and ReSukiSU pins.
+          SUPPORTED=$(jq -r --arg vd "$VD" '.[$vd].variants[]?' "$REGISTRY")
+          if [ -z "$SUPPORTED" ]; then
+            echo "::error::No variants registered for $VD"
+            exit 1
+          fi
+
+          if [ "$REQUESTED" = "All" ]; then
+            LIST="$SUPPORTED"
+          elif grep -qxF "$REQUESTED" <<< "$SUPPORTED"; then
+            LIST="$REQUESTED"
+          else
+            echo "::error::$REQUESTED is not available for $VD."
+            echo "Available: $(tr '\n' ' ' <<< "$SUPPORTED")"
+            exit 1
+          fi
+
+          echo "Building: $(tr '\n' ' ' <<< "$LIST")"
+          {
+            echo "list=$(tr '\n' ',' <<< "$LIST" | sed 's/,$//')"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Summary
+        env:
+          AV: ${{ steps.parse.outputs.android_version }}
+          KV: ${{ steps.parse.outputs.kernel_version }}
+          VD: ${{ steps.parse.outputs.version_dir }}
+        run: |
+          {
+            echo "## Build target"
+            echo ""
+            echo "| Field | Value |"
+            echo "|-------|-------|"
+            echo "| Version directory | \`$VD\` |"
+            echo "| Android | $AV |"
+            echo "| Kernel | $KV.${{ inputs.sub_level }} |"
+            echo "| SPL | ${{ inputs.os_patch_level }} |"
+            echo "| Variants | ${{ steps.variants.outputs.list }} |"
+            echo "| Device profile | ${{ inputs.device_codename }} |"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+  download-dependencies:
+    uses: ./.github/workflows/cache-dependencies.yml
+    permissions:
+      contents: read
+      actions: write
+
+  build:
+    name: "${{ inputs.ksu_variant }} ${{ inputs.kernel_version_dir }}.${{ inputs.sub_level }}"
+    needs: [resolve, download-dependencies]
+    permissions:
+      contents: write
+      actions: write
+    uses: ./.github/workflows/build-kernel.yml
+    with:
+      android_version: ${{ needs.resolve.outputs.android_version }}
+      kernel_version: ${{ needs.resolve.outputs.kernel_version }}
+      sub_level: ${{ inputs.sub_level }}
+      os_patch_level: ${{ inputs.os_patch_level }}
+      add_susfs: ${{ github.event_name != 'workflow_dispatch' || inputs.add_susfs }}
+      add_zram: ${{ github.event_name != 'workflow_dispatch' || inputs.add_zram }}
+      add_bbg: ${{ github.event_name != 'workflow_dispatch' || inputs.add_bbg }}
+      add_overlayfs_support: ${{ github.event_name != 'workflow_dispatch' || inputs.add_overlayfs_support }}
+      add_kpm: ${{ github.event_name == 'workflow_dispatch' && inputs.add_kpm || false }}
+      add_hybridmount_vfs: ${{ github.event_name != 'workflow_dispatch' || inputs.add_hybridmount_vfs }}
+      sukisu_commit: ${{ inputs.sukisu_commit }}
+      device_codename: ${{ github.event_name != 'workflow_dispatch' || inputs.device_codename }}
+      variants: ${{ needs.resolve.outputs.variants }}

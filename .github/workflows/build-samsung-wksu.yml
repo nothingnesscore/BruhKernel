@@ -325,7 +325,17 @@ jobs:
       working-directory: ${{ env.KERNEL_COMMON }}/${{ env.KSU_DIR }}
       run: |
         PATCH="$GITHUB_WORKSPACE/$VERSION_DIR/WildKSU/patches/70_ksu_safety-wksu-${KERNEL_VER}.patch"
-        [ -s "$PATCH" ] && patch -p1 --no-backup-if-mismatch < "$PATCH" || echo "No 70_ patch needed"
+        if [ ! -s "$PATCH" ]; then
+          echo "No 70_ patch needed for ${KERNEL_VER} (absent or empty)"
+        else
+          # A rejected safety patch must fail the build: silently continuing
+          # would ship a kernel missing its safety fixes.
+          if ! patch -p1 -F3 --no-backup-if-mismatch < "$PATCH"; then
+            echo "::error::Failed to apply $PATCH"
+            exit 1
+          fi
+          echo "Applied $PATCH"
+        fi
 
     - name: Fix SUSFS Compatibility
       if: inputs.add_susfs

@@ -171,17 +171,28 @@ jobs:
           UPDATED_FLAVOURS: ${{ steps.check.outputs.updated_flavours }}
         run: |
           set -uo pipefail
-          echo "Triggering automated builds for:$UPDATED_FLAVOURS"
+
+          # Build the reference target rather than a hardcoded string, so the
+          # monitor follows device-profiles.json if the profile changes.
+          VD=$(jq -r '.devices.peridot | "\(.android_version)-\(.kernel_version)"' device-profiles.json)
+          SL=$(jq -r '.devices.peridot.sub_level' device-profiles.json)
+          SPL=$(jq -r '.devices.peridot.os_patch_level' device-profiles.json)
+          echo "Reference target: $VD.$SL ($SPL)"
+
           for f in $UPDATED_FLAVOURS; do
             echo "Dispatching kernel build for $f..."
-            gh workflow run kernel-custom.yml \
-              -f kernel_target="android14-6.1.138 (2025-06)" \
+            # -f key=value is the correct form; the previous '-f=true' was not.
+            gh workflow run build.yml \
+              -f kernel_version_dir="$VD" \
+              -f sub_level="$SL" \
+              -f os_patch_level="$SPL" \
               -f ksu_variant="$f" \
               -f add_susfs=true \
               -f add_zram=true \
               -f add_bbg=true \
               -f add_overlayfs_support=true \
               -f add_kpm=false \
-              -f add_hybridmount_vfs=true
+              -f add_hybridmount_vfs=true \
+              -f device_codename=peridot
             echo "Build dispatched for $f"
           done

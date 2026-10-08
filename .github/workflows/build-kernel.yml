@@ -1,4 +1,11 @@
-name: Build WKSU
+name: "Build GKI Kernel"
+
+# One builder for all four KernelSU variants. The four previous builders
+# (build-sukisu / build-resukisu / build-ksu-next / build-wksu) differed only in
+# the values resolved by the `variant` matrix below: upstream repo, checkout
+# branch, checkout directory, pin file, patch directory, safety-patch slug,
+# fragment name and version suffix. Keeping them as four files meant every fix
+# to the shared ~500-line body had to be applied four times.
 
 permissions:
   contents: write
@@ -19,6 +26,10 @@ on:
       os_patch_level:
         type: string
         required: true
+      variants:
+        description: "Comma-separated list of variants to build"
+        type: string
+        default: "SukiSU,ReSukiSU,KernelSU-Next,WKSU"
       add_susfs:
         type: boolean
         default: true
@@ -52,12 +63,73 @@ on:
 
 jobs:
   build:
-    name: "WKSU ${{ inputs.kernel_version }}.${{ inputs.sub_level }}"
+    name: "${{ matrix.variant.name }} ${{ inputs.kernel_version }}.${{ inputs.sub_level }}"
+    # The matrix declares all four so the values stay in one place, but a
+    # matrix job cannot be conditionally excluded without re-evaluating the
+    # list per event. Instead each leg checks membership here.
+    #
+    # The list is delimiter-wrapped on both sides: a bare
+    # contains(inputs.variants, matrix.variant.name) would be a substring test,
+    # and "SukiSU" is a substring of "ReSukiSU", so asking for ReSukiSU would
+    # also build SukiSU.
+    if: contains(format(',{0},', inputs.variants), format(',{0},', matrix.variant.name))
     runs-on: ubuntu-latest
     timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        variant:
+          - name: SukiSU
+            repo: SukiSU-Ultra/SukiSU-Ultra
+            setup_raw: main
+            setup_branch: builtin
+            dir: KernelSU
+            pin: sukisu-pin.txt
+            patchdir: SukiSU-Ultra
+            safety: sukisu
+            fragment: sukisu_gki
+            suffix: SukiSU
+            kbuild_fix: false
+          - name: ReSukiSU
+            repo: ReSukiSU/ReSukiSU
+            setup_raw: main
+            setup_branch: susfs-ksud
+            dir: KernelSU
+            pin: resukisu-pin.txt
+            patchdir: ReSukiSU
+            safety: resukisu
+            fragment: sukisu_gki
+            suffix: ReSukiSU
+            kbuild_fix: true
+          - name: KernelSU-Next
+            repo: KernelSU-Next/KernelSU-Next
+            setup_raw: next
+            setup_branch: next
+            dir: KernelSU-Next
+            pin: kernelsu-next-pin.txt
+            patchdir: KernelSU-Next
+            safety: kernelsu-next
+            fragment: sukisu_gki
+            suffix: KernelSU-Next
+            kbuild_fix: false
+          - name: WKSU
+            repo: WildKernels/Wild_KSU
+            setup_raw: stable
+            setup_branch: canary
+            dir: Wild_KSU
+            pin: wksu-pin.txt
+            patchdir: WildKSU
+            safety: wksu
+            fragment: wild_gki
+            suffix: Wild
+            kbuild_fix: false
     env:
-      KSU_VARIANT: WKSU
-      KSU_DIR: Wild_KSU
+      KSU_VARIANT: ${{ matrix.variant.name }}
+      KSU_DIR: ${{ matrix.variant.dir }}
+      KSU_PATCHDIR: ${{ matrix.variant.patchdir }}
+      KSU_SAFETY: ${{ matrix.variant.safety }}
+      KSU_FRAGMENT: ${{ matrix.variant.fragment }}
+      KSU_SUFFIX: ${{ matrix.variant.suffix }}
 
     steps:
     - name: Checkout Repository
@@ -129,7 +201,7 @@ jobs:
           echo "KERNEL_ROOT=$KERNEL_ROOT"
           echo "VERSION_DIR=$VERSION_DIR"
           echo "DEFCONFIG=$KERNEL_ROOT/common/arch/arm64/configs/gki_defconfig"
-          echo "DEFCONFIG_FRAGMENT=$KERNEL_ROOT/common/arch/arm64/configs/wild_gki.fragment"
+          echo "DEFCONFIG_FRAGMENT=$KERNEL_ROOT/common/arch/arm64/configs/${KSU_FRAGMENT}.fragment"
           echo "KERNEL_PATCHES=$GITHUB_WORKSPACE/kernel_patches"
           echo "ANYKERNEL3=$GITHUB_WORKSPACE/AnyKernel3"
         } >> "$GITHUB_ENV"
@@ -156,6 +228,9 @@ jobs:
     - name: Extract Sublevel
       env:
         INPUT_SUB_LEVEL: ${{ inputs.sub_level }}
+        ANDROID_VER: ${{ inputs.android_version }}
+        KERNEL_VER: ${{ inputs.kernel_version }}
+        OS_PATCH: ${{ inputs.os_patch_level }}
       run: |
         SUBLEVEL="$INPUT_SUB_LEVEL"
         if [[ -f "$KERNEL_ROOT/common/Makefile" ]]; then
@@ -163,27 +238,31 @@ jobs:
           [[ -n "$EXTRACTED" ]] && SUBLEVEL="$EXTRACTED"
         fi
 
-        ARTIFACT_BASE="${KERNEL_VER}.${SUBLEVEL}-${ANDROID_VER}-${OS_PATCH}-WKSU"
+        ARTIFACT_BASE="${KERNEL_VER}.${SUBLEVEL}-${ANDROID_VER}-${OS_PATCH}-${KSU_VARIANT}"
         {
           echo "SUBLEVEL=$SUBLEVEL"
           echo "ARTIFACT_BASE=$ARTIFACT_BASE"
           echo "FILE_NAME=$ARTIFACT_BASE"
         } >> "$GITHUB_ENV"
 
-    - name: Setup WildKSU
+    - name: Setup KernelSU
       working-directory: ${{ env.KERNEL_ROOT }}
       env:
         SUKISU_COMMIT: ${{ inputs.sukisu_commit }}
+        KSU_REPO: ${{ matrix.variant.repo }}
+        KSU_SETUP_RAW: ${{ matrix.variant.setup_raw }}
+        KSU_SETUP_BRANCH: ${{ matrix.variant.setup_branch }}
+        KSU_PIN: ${{ matrix.variant.pin }}
       run: |
-        curl -LSs "https://raw.githubusercontent.com/WildKernels/Wild_KSU/stable/kernel/setup.sh" | bash -s canary
+        curl -LSs "https://raw.githubusercontent.com/$KSU_REPO/$KSU_SETUP_RAW/kernel/setup.sh" | bash -s "$KSU_SETUP_BRANCH"
         [ -d "$KERNEL_ROOT/$KSU_DIR" ] || { echo "FATAL: $KSU_DIR not created by setup.sh"; exit 1; }
 
-        PIN="${SUKISU_COMMIT:-$(cat "$GITHUB_WORKSPACE/$VERSION_DIR/wksu-pin.txt" 2>/dev/null || true)}"
+        PIN="${SUKISU_COMMIT:-$(cat "$GITHUB_WORKSPACE/$VERSION_DIR/$KSU_PIN" 2>/dev/null || true)}"
         if [ -n "$PIN" ]; then
           cd "$KERNEL_ROOT/$KSU_DIR"
           git fetch origin
           git checkout "$PIN"
-          echo "Pinned WKSU to $(git rev-parse --short=7 HEAD)"
+          echo "Pinned $KSU_VARIANT to $(git rev-parse --short=7 HEAD)"
         fi
 
         cd "$KERNEL_ROOT/common"
@@ -191,7 +270,11 @@ jobs:
         SUPERCALLS="drivers/kernelsu/supercalls.c"
         if [ -f "$SUPERCALLS" ]; then
           sed -i '/ksu_mark_running_process/d' "$SUPERCALLS"
-          sed -i '/susfs_set_i_state_on_external_dir/d' "$SUPERCALLS"
+          # WKSU alone ships this hook; it references symbols that no longer
+          # exist, so leaving the unused function in place breaks the link.
+          if [ "$KSU_VARIANT" = "WKSU" ]; then
+            sed -i '/susfs_set_i_state_on_external_dir/d' "$SUPERCALLS"
+          fi
           if grep -q "vzalloc" "$SUPERCALLS" && ! head -5 "$SUPERCALLS" | grep -q "vmalloc.h"; then
             sed -i '1a #include <linux/vmalloc.h>' "$SUPERCALLS"
           fi
@@ -207,20 +290,31 @@ jobs:
       if: inputs.add_susfs
       working-directory: ${{ env.KERNEL_ROOT }}/common
       run: |
-        patch -p1 -F3 --no-backup-if-mismatch < "$GITHUB_WORKSPACE/$VERSION_DIR/WildKSU/patches/50_add_susfs_in_gki-${ANDROID_VER}-${KERNEL_VER}.patch"
+        patch -p1 -F3 --no-backup-if-mismatch < "$GITHUB_WORKSPACE/$VERSION_DIR/$KSU_PATCHDIR/patches/50_add_susfs_in_gki-${ANDROID_VER}-${KERNEL_VER}.patch"
 
     - name: Apply Enhanced SUSFS Patch
       if: inputs.add_susfs
       working-directory: ${{ env.KERNEL_ROOT }}/common
       run: |
-        patch -p1 -F3 --no-backup-if-mismatch < "$GITHUB_WORKSPACE/$VERSION_DIR/WildKSU/patches/51_enhanced_susfs-${ANDROID_VER}-${KERNEL_VER}.patch"
+        patch -p1 -F3 --no-backup-if-mismatch < "$GITHUB_WORKSPACE/$VERSION_DIR/$KSU_PATCHDIR/patches/51_enhanced_susfs-${ANDROID_VER}-${KERNEL_VER}.patch"
 
     - name: Apply KSU Safety Patch
       if: inputs.add_susfs
       working-directory: ${{ env.KERNEL_ROOT }}/${{ env.KSU_DIR }}
       run: |
-        PATCH="$GITHUB_WORKSPACE/$VERSION_DIR/WildKSU/patches/70_ksu_safety-wksu-${KERNEL_VER}.patch"
-        [ -s "$PATCH" ] && patch -p1 --no-backup-if-mismatch < "$PATCH" || echo "No 70_ patch needed"
+        PATCH="$GITHUB_WORKSPACE/$VERSION_DIR/$KSU_PATCHDIR/patches/70_ksu_safety-${KSU_SAFETY}-${KERNEL_VER}.patch"
+        if [ ! -s "$PATCH" ]; then
+          echo "No 70_ patch needed for ${KERNEL_VER} (absent or empty)"
+        else
+          # A rejected safety patch must fail the build rather than be skipped:
+          # for SukiSU it carries the safe-mode latch, so continuing silently
+          # ships the known false-positive.
+          if ! patch -p1 -F3 --no-backup-if-mismatch < "$PATCH"; then
+            echo "::error::Failed to apply $PATCH"
+            exit 1
+          fi
+          echo "Applied $PATCH"
+        fi
 
     - name: Prepare KernelSU for Bazel Sandbox
       working-directory: ${{ env.KERNEL_ROOT }}
@@ -232,7 +326,17 @@ jobs:
           cp -r "$KSU_TARGET" "$KERNEL_ROOT/common/drivers/kernelsu"
           echo "[+] Converted drivers/kernelsu symlink to physical directory for Bazel sandbox"
         fi
-        sed -i '/susfs_set_i_state_on_external_dir/d' "$KERNEL_ROOT/common/drivers/kernelsu/supercalls.c" 2>/dev/null || true
+
+        # ReSukiSU only: neutralise its git-submodule gate and pin a local
+        # version, neither of which resolve inside the Bazel sandbox.
+        if [ "${{ matrix.variant.kbuild_fix }}" = "true" ]; then
+          sed -i 's/ifeq ($(LOCAL_GIT_EXISTS),0)/ifneq (1,1)/' \
+            "$KERNEL_ROOT/common/drivers/kernelsu/Kbuild" \
+            "$KERNEL_ROOT/$KSU_DIR/kernel/Kbuild" 2>/dev/null || true
+          sed -i 's/KSU_LOCAL_VERSION :=.*/KSU_LOCAL_VERSION := 100/' \
+            "$KERNEL_ROOT/common/drivers/kernelsu/Kbuild" \
+            "$KERNEL_ROOT/$KSU_DIR/kernel/Kbuild" 2>/dev/null || true
+        fi
 
         # Ensure uapi headers are available to drivers/kernelsu
         if [ -d "$KERNEL_ROOT/$KSU_DIR/uapi" ]; then
@@ -268,8 +372,6 @@ jobs:
     - name: Upgrade LZ4 to v1.10.0
       if: inputs.add_zram
       working-directory: ${{ env.KERNEL_ROOT }}/common
-      env:
-        KERNEL_VER: ${{ inputs.kernel_version }}
       run: |
         ZRAM_DIR="$GITHUB_WORKSPACE/zram"
         if [ -d "$ZRAM_DIR" ]; then
@@ -343,8 +445,6 @@ jobs:
 
     - name: Apply Module Check Bypass
       working-directory: ${{ env.KERNEL_ROOT }}
-      env:
-        KERNEL_VER: ${{ inputs.kernel_version }}
       run: |
         if [[ "$KERNEL_VER" == "6.1" || "$KERNEL_VER" == "6.6" || "$KERNEL_VER" == "6.12" ]]; then
           TARGET_FILE="$KERNEL_ROOT/common/kernel/module/version.c"
@@ -357,7 +457,7 @@ jobs:
       working-directory: ${{ env.KERNEL_ROOT }}
       run: |
         HELPERS="$GITHUB_WORKSPACE/$VERSION_DIR/build-helpers"
-        bash "$HELPERS/clean-build-flags.sh" . "$KERNEL_VER" "Wild"
+        bash "$HELPERS/clean-build-flags.sh" . "$KERNEL_VER" "$KSU_SUFFIX"
 
     - name: Set Stock Build Identity
       working-directory: ${{ env.KERNEL_ROOT }}/common
@@ -396,7 +496,7 @@ jobs:
         STOCK_BUILD_HOST=$(jq -r ".devices.${DEVICE_CODENAME}.stock_kernel.build_host" "$PROFILE_FILE")
         STOCK_COMPILER=$(jq -r ".devices.${DEVICE_CODENAME}.stock_kernel.compiler_info // empty" "$PROFILE_FILE")
 
-        # 5.10–6.1: Makefile prepends KERNELVERSION, setlocalversion outputs suffix only
+        # 5.10-6.1: Makefile prepends KERNELVERSION, setlocalversion outputs suffix only
         # 6.6+: Makefile delegates entirely to setlocalversion, must output full version
         MAJOR=${KERNEL_VER%%.*}
         MINOR=${KERNEL_VER#*.}
@@ -439,12 +539,12 @@ jobs:
         if [ -f "build/build.sh" ]; then
           KMI_SYMBOL_LIST_STRICT_MODE=0 HOSTLD=/usr/bin/ld.lld GKI_DEFCONFIG_FRAGMENT="$DEFCONFIG_FRAGMENT" LTO=$LTO_MODE BUILD_CONFIG=common/build.config.gki.aarch64 build/build.sh || BUILD_RC=$?
         else
-          # Prebuilt clang sysroot lacks glibc 2.39 C23 symbols — link against system libc
+          # Prebuilt clang sysroot lacks glibc 2.39 C23 symbols - link against system libc
           if [ -f common/tools/bpf/resolve_btfids/Makefile ]; then
             echo 'override KBUILD_HOSTLDFLAGS += --sysroot=/' >> common/tools/bpf/resolve_btfids/Makefile
             echo 'override LDFLAGS += --sysroot=/' >> common/tools/bpf/resolve_btfids/Makefile
           fi
-          tools/bazel build --config=fast --verbose_failures --lto=$LTO_MODE --defconfig_fragment=//common:arch/arm64/configs/wild_gki.fragment //common:kernel_aarch64_dist || BUILD_RC=$?
+          tools/bazel build --config=fast --verbose_failures --lto=$LTO_MODE --defconfig_fragment=//common:arch/arm64/configs/${KSU_FRAGMENT}.fragment //common:kernel_aarch64_dist || BUILD_RC=$?
         fi
         if [ "$BUILD_RC" -ne 0 ]; then
           if find . -name "Image" -type f 2>/dev/null | grep -q .; then
@@ -457,27 +557,22 @@ jobs:
     - name: Dump Build Errors
       if: failure()
       run: |
-        echo "=== Searching for build logs ==="
-        # Copy logs to a directory
         mkdir -p $GITHUB_WORKSPACE/debug-logs
-        
-        # Bazel logs
+
         for BLOG in $(find "$HOME/.cache/bazel" -name 'command.log' 2>/dev/null | head -3); do
           cp "$BLOG" "$GITHUB_WORKSPACE/debug-logs/bazel_command_$(basename $(dirname $BLOG)).log"
         done
-        # Kernel logs
         for LOG in $(find "$KERNEL_ROOT" -name '*.log' -newer "$KERNEL_ROOT/common" -type f 2>/dev/null | head -5); do
           cp "$LOG" "$GITHUB_WORKSPACE/debug-logs/$(basename "$LOG")"
         done
-        
-        # Push to debug-logs branch
+
         cd $GITHUB_WORKSPACE
         git config user.name "github-actions[bot]"
         git config user.email "github-actions[bot]@users.noreply.github.com"
         git fetch origin
         git checkout -B debug-logs
         git add debug-logs/
-        git commit -m "chore: upload build failure logs"
+        git commit -m "chore: upload build failure logs" || true
         git push origin debug-logs --force
 
     - name: Prepare AnyKernel3
@@ -516,8 +611,8 @@ jobs:
       with:
         name: ${{ env.FILE_NAME }}-AnyKernel3
         path: ./AnyKernel3/**
-        if-no-files-found: error
-        compression-level: 9
+      if-no-files-found: error
+      compression-level: 9
 
     - name: Upload Rejects
       if: always() && env.REJ_COUNT > 0
@@ -525,8 +620,8 @@ jobs:
       with:
         name: ${{ env.FILE_NAME }}-Rejects
         path: patch-rejects/
-        if-no-files-found: ignore
-        compression-level: 9
+      if-no-files-found: ignore
+      compression-level: 9
 
     - name: Job Summary
       if: always()
@@ -540,7 +635,7 @@ jobs:
       run: |
         S() { [[ "$1" == "true" ]] && echo "Enabled" || echo "Disabled"; }
         {
-          echo "## WKSU | ${KERNEL_VER}.${SUBLEVEL}"
+          echo "## ${KSU_VARIANT} | ${KERNEL_VER}.${SUBLEVEL}"
           echo ""
           echo "| Feature | Status |"
           echo "|---------|--------|"
@@ -551,7 +646,7 @@ jobs:
           echo "| **ZRAM (LZ4K/LZ4KD)** | $(S "$ADD_ZRAM") |"
           echo "| **LZ4 v1.10.0** | $(S "$ADD_ZRAM") |"
           echo "| **Overlayfs Support** | $(S "$ADD_OVERLAYFS") |"
-          echo "| **Module Check Bypass** | Enabled |"
+          echo "| **Unicode Filter** | Enabled |"
           echo "| **Baseband Guard** | $(S "$ADD_BBG") |"
           echo "| **KPM** | $(S "$ADD_KPM") |"
           echo "| **HybridMount VFS** | $(S "$ADD_HYBRIDMOUNT_VFS") |"
