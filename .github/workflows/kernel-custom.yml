@@ -442,6 +442,7 @@ jobs:
 
   build-sukisu:
     needs: [resolve, download-dependencies]
+    if: contains(needs.resolve.outputs.variants, '"SukiSU"') || inputs.ksu_variant == 'All'
     uses: ./.github/workflows/build-sukisu.yml
     with:
       android_version: ${{ needs.resolve.outputs.android_version }}
@@ -458,6 +459,7 @@ jobs:
 
   build-ksu-next:
     needs: [resolve, download-dependencies]
+    if: contains(needs.resolve.outputs.variants, '"KernelSU-Next"') || inputs.ksu_variant == 'All'
     uses: ./.github/workflows/build-ksu-next.yml
     with:
       android_version: ${{ needs.resolve.outputs.android_version }}
@@ -474,6 +476,7 @@ jobs:
 
   build-resukisu:
     needs: [resolve, download-dependencies]
+    if: contains(needs.resolve.outputs.variants, '"ReSukiSU"') || inputs.ksu_variant == 'All'
     uses: ./.github/workflows/build-resukisu.yml
     with:
       android_version: ${{ needs.resolve.outputs.android_version }}
@@ -490,6 +493,7 @@ jobs:
 
   build-wksu:
     needs: [resolve, download-dependencies]
+    if: contains(needs.resolve.outputs.variants, '"WKSU"') || inputs.ksu_variant == 'All'
     uses: ./.github/workflows/build-wksu.yml
     with:
       android_version: ${{ needs.resolve.outputs.android_version }}
