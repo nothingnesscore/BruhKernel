@@ -34,65 +34,135 @@ jobs:
           fetch-depth: 0
           token: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Check KSU Upstreams 
+      - name: Check KSU Upstreams
         id: check
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           FORCE_BUILD: ${{ inputs.force_build }}
           TARGET_VARIANT: ${{ inputs.variant || 'All' }}
         run: |
+          set -uo pipefail
           git config --global user.name "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
 
-          VERSION_DIR="android14-6.1"
-          UPDATED_FLAVOURS=""
+          # Variant -> upstream repo, branch to track, pin filename.
+          # android14-6.1 tracks SukiSU main; the other seven directories are
+          # built from the 'builtin' branch (see setup.sh "bash -s builtin"),
+          # whose 6c5603f pin is not reachable from main. Tracking main for
+          # them would silently jump 3774 commits and break their patches.
+          declare -A REPO=(
+            [SukiSU]="SukiSU-Ultra/SukiSU-Ultra"
+            [ReSukiSU]="ReSukiSU/ReSukiSU"
+            [KernelSU-Next]="KernelSU-Next/KernelSU-Next"
+            [WKSU]="WildKernels/Wild_KSU"
+          )
+          declare -A BRANCH_MAIN=(
+            [SukiSU]="main"
+            [ReSukiSU]="main"
+            [KernelSU-Next]="next"
+            [WKSU]="canary"
+          )
+          declare -A BRANCH_BUILTIN=(
+            [SukiSU]="builtin"
+            [ReSukiSU]="main"
+            [KernelSU-Next]="next"
+            [WKSU]="canary"
+          )
+          declare -A PINFILE=(
+            [SukiSU]="sukisu-pin.txt"
+            [ReSukiSU]="resukisu-pin.txt"
+            [KernelSU-Next]="kernelsu-next-pin.txt"
+            [WKSU]="wksu-pin.txt"
+          )
 
-          check_upstream() {
-            local name="$1"
-            local repo="$2"
-            local branch="$3"
-            local pin_file="$VERSION_DIR/$4"
+          # android12-5.4 ships only the SukiSU and ReSukiSU pins.
+          VERSION_DIRS=(
+            android12-5.4 android12-5.10 android13-5.10 android13-5.15
+            android14-5.15 android14-6.1 android15-6.6 android16-6.12
+          )
+          AVAIL_VARIANTS=(
+            SukiSU ReSukiSU KernelSU-Next WKSU
+          )
 
-            echo "=== Checking $name ($repo @ $branch) ==="
-            local remote_sha
-            remote_sha=$(curl -s "https://api.github.com/repos/$repo/commits/$branch" | jq -r '.sha // empty')
-            if [ -z "$remote_sha" ] || [ "$remote_sha" = "null" ]; then
-              echo "::warning::Could not fetch latest SHA for $repo ($branch)"
-              return 0
-            fi
+          # Resolve each variant's branch tip once per run.
+          declare -A SHA_MAIN=()
+          declare -A SHA_BUILTIN=()
 
-            local current_pin=""
-            [ -f "$pin_file" ] && current_pin=$(cat "$pin_file" | tr -d '[:space:]')
-
-            echo "Current pin: $current_pin"
-            echo "Remote latest: $remote_sha"
-
-            if [ "$remote_sha" != "$current_pin" ] || [ "$FORCE_BUILD" = "true" ]; then
-              echo "✨ New commit detected for $name: ${remote_sha:0:7} (was: ${current_pin:0:7})"
-              echo "$remote_sha" > "$pin_file"
-              UPDATED_FLAVOURS="$UPDATED_FLAVOURS $name"
-            else
-              echo "✅ $name is up to date."
-            fi
+          fetch_sha() {
+            local repo="$1" branch="$2"
+            curl -sS -H "Accept: application/vnd.github+json" \
+                 -H "Authorization: Bearer $GH_TOKEN" \
+                 -H "X-GitHub-Api-Version: 2022-11-28" \
+                 "https://api.github.com/repos/$repo/commits/$branch" \
+              | jq -r '.sha // empty'
           }
 
-          if [ "$TARGET_VARIANT" = "All" ] || [ "$TARGET_VARIANT" = "SukiSU" ]; then
-            check_upstream "SukiSU" "SukiSU-Ultra/SukiSU-Ultra" "main" "sukisu-pin.txt"
-          fi
-          if [ "$TARGET_VARIANT" = "All" ] || [ "$TARGET_VARIANT" = "ReSukiSU" ]; then
-            check_upstream "ReSukiSU" "ReSukiSU/ReSukiSU" "main" "resukisu-pin.txt"
-          fi
-          if [ "$TARGET_VARIANT" = "All" ] || [ "$TARGET_VARIANT" = "KernelSU-Next" ]; then
-            check_upstream "KernelSU-Next" "KernelSU-Next/KernelSU-Next" "next" "kernelsu-next-pin.txt"
-          fi
-          if [ "$TARGET_VARIANT" = "All" ] || [ "$TARGET_VARIANT" = "WKSU" ]; then
-            check_upstream "WKSU" "WildKernels/Wild_KSU" "canary" "wksu-pin.txt"
+          for v in "${AVAIL_VARIANTS[@]}"; do
+            if [ "$TARGET_VARIANT" != "All" ] && [ "$TARGET_VARIANT" != "$v" ]; then
+              continue
+            fi
+            repo="${REPO[$v]}"
+            SHA_MAIN[$v]="$(fetch_sha "$repo" "${BRANCH_MAIN[$v]}")"
+            SHA_BUILTIN[$v]="$(fetch_sha "$repo" "${BRANCH_BUILTIN[$v]}")"
+            if [ -z "${SHA_MAIN[$v]}" ] || [ -z "${SHA_BUILTIN[$v]}" ]; then
+              echo "::warning::Could not resolve upstream SHA for $v ($repo)"
+              continue
+            fi
+            echo "$v: ${BRANCH_MAIN[$v]}=${SHA_MAIN[$v]:0:7} ${BRANCH_BUILTIN[$v]}=${SHA_BUILTIN[$v]:0:7}"
+          done
+
+          UPDATED_FLAVOURS=""
+          CHANGED=0
+
+          for vd in "${VERSION_DIRS[@]}"; do
+            [ -d "$vd" ] || continue
+            for v in "${AVAIL_VARIANTS[@]}"; do
+              if [ "$TARGET_VARIANT" != "All" ] && [ "$TARGET_VARIANT" != "$v" ]; then
+                continue
+              fi
+              pin_file="$vd/${PINFILE[$v]}"
+              [ -f "$pin_file" ] || continue
+
+              # android14-6.1 builds from main; every other directory from builtin.
+              if [ "$vd" = "android14-6.1" ]; then
+                branch="${BRANCH_MAIN[$v]}"
+                remote_sha="${SHA_MAIN[$v]}"
+              else
+                branch="${BRANCH_BUILTIN[$v]}"
+                remote_sha="${SHA_BUILTIN[$v]}"
+              fi
+              [ -n "$remote_sha" ] || continue
+
+              current_pin="$(tr -d '[:space:]' < "$pin_file")"
+
+              if [ "$remote_sha" != "$current_pin" ] || [ "$FORCE_BUILD" = "true" ]; then
+                echo "✨ $vd/$v: ${current_pin:0:7} -> ${remote_sha:0:7} ($branch)"
+                printf '%s\n' "$remote_sha" > "$pin_file"
+                CHANGED=1
+                case " $UPDATED_FLAVOURS " in
+                  *" $v "*) ;;
+                  *) UPDATED_FLAVOURS="$UPDATED_FLAVOURS $v" ;;
+                esac
+              else
+                echo "✅ $vd/$v up to date (${current_pin:0:7})"
+              fi
+            done
+          done
+
+          UPDATED_FLAVOURS="${UPDATED_FLAVOURS# }"
+
+          if [ "$CHANGED" = "1" ] && ! git diff --quiet; then
+            git add -A
+            git commit -m "chore(upstream): update KSU variant pins ($UPDATED_FLAVOURS)"
+            git push origin HEAD:main
+            echo "Pushed updated pins to main."
+          elif [ "$CHANGED" = "1" ]; then
+            echo "Pins reported as changed but no diff to commit."
+          else
+            echo "All pins already up to date."
           fi
 
-            git commit -m "chore(upstream): update KSU/NoMount pins ($UPDATED_FLAVOURS)" || true
-            git push origin main || true
-            echo "Pushed updated pins to main."
-          fi
+          echo "updated_flavours=$UPDATED_FLAVOURS" >> "$GITHUB_OUTPUT"
 
       - name: Trigger Automated Builds
         if: steps.check.outputs.updated_flavours != ''
@@ -100,18 +170,18 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           UPDATED_FLAVOURS: ${{ steps.check.outputs.updated_flavours }}
         run: |
-          echo "Triggering automated builds for: $UPDATED_FLAVOURS"
+          set -uo pipefail
+          echo "Triggering automated builds for:$UPDATED_FLAVOURS"
           for f in $UPDATED_FLAVOURS; do
-            TARGET_KSU="$f"
-            [ "$f" = "NoMount" ] && TARGET_KSU="All"
-            echo "Dispatching kernel build for $TARGET_KSU..."
+            echo "Dispatching kernel build for $f..."
             gh workflow run kernel-custom.yml \
               -f kernel_target="android14-6.1.138 (2025-06)" \
-              -f ksu_variant="$TARGET_KSU" \
+              -f ksu_variant="$f" \
               -f add_susfs=true \
-              -f=true \
               -f add_zram=true \
-              -f add_overlayfs_support=true
-            echo "Build dispatched successfully for $TARGET_KSU!"
-            [ "$TARGET_KSU" = "All" ] && break
+              -f add_bbg=true \
+              -f add_overlayfs_support=true \
+              -f add_kpm=false \
+              -f add_hybridmount_vfs=true
+            echo "Build dispatched for $f"
           done
