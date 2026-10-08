@@ -418,12 +418,13 @@ jobs:
           KCONFIG_SEARCH_DIR="$KERNEL_COMMON" \
             bash "$OGKI_DEFCONFIG_SCRIPT" "$DEFCONFIG" "$KSU_VARIANT"
         else
+          echo "::warning::assemble-ogki-defconfig.sh not found - using the GKI fragment assembler"
           FRAGMENT="$GITHUB_WORKSPACE/$VERSION_DIR/defconfig.fragment"
           HELPERS="$GITHUB_WORKSPACE/$VERSION_DIR/build-helpers"
           ASSEMBLE_FLAGS=""
           [[ "$ADD_SUSFS" == "true" ]] && ASSEMBLE_FLAGS="$ASSEMBLE_FLAGS --susfs --overlayfs"
           [[ "$ADD_KPM" == "true" ]] && ASSEMBLE_FLAGS="$ASSEMBLE_FLAGS --kpm"
-        [[ "$ADD_HYBRIDMOUNT_VFS" == "true" ]] && ASSEMBLE_FLAGS="$ASSEMBLE_FLAGS --hybridmount"
+          [[ "$ADD_HYBRIDMOUNT_VFS" == "true" ]] && ASSEMBLE_FLAGS="$ASSEMBLE_FLAGS --hybridmount"
           [[ "$ADD_ZRAM" == "true" ]] && ASSEMBLE_FLAGS="$ASSEMBLE_FLAGS --zram"
           bash "$HELPERS/assemble-defconfig.sh" "$FRAGMENT" "$DEFCONFIG_FRAGMENT" "$DEFCONFIG" $ASSEMBLE_FLAGS
         fi

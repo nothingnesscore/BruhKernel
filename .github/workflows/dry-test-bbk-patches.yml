@@ -339,6 +339,14 @@ jobs:
         if [ -f "$OGKI_DEFCONFIG_SCRIPT" ]; then
           KCONFIG_SEARCH_DIR="$KERNEL_COMMON" \
             bash "$OGKI_DEFCONFIG_SCRIPT" "$DEFCONFIG" "SukiSU"
+        else
+          echo "::warning::assemble-ogki-defconfig.sh not found - using the GKI fragment assembler"
+          FRAGMENT="$GITHUB_WORKSPACE/$VERSION_DIR/defconfig.fragment"
+          HELPERS="$GITHUB_WORKSPACE/$VERSION_DIR/build-helpers"
+          ASSEMBLE_FLAGS=""
+          [[ "${ADD_SUSFS:-true}" == "true" ]] && ASSEMBLE_FLAGS="$ASSEMBLE_FLAGS --susfs --overlayfs"
+          [[ "${ADD_ZRAM:-false}" == "true" ]] && ASSEMBLE_FLAGS="$ASSEMBLE_FLAGS --zram"
+          bash "$HELPERS/assemble-defconfig.sh" "$FRAGMENT" "$DEFCONFIG_FRAGMENT" "$DEFCONFIG" $ASSEMBLE_FLAGS
         fi
 
     - name: Targeted Compilation
