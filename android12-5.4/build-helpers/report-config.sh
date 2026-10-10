@@ -93,14 +93,8 @@ fi
     CONFIG_TCP_CONG_BBR \
     CONFIG_KPM; do
 
-    # Dual-check CONFIG_NOMOUNT and CONFIG_ZEROMOUNT to prevent false '—' on patch-based trees
-    if [ "$symbol" = "CONFIG_NOMOUNT" ]; then
-      val=$(grep -E "^(CONFIG_NOMOUNT|CONFIG_ZEROMOUNT)=" "$DOT_CONFIG" 2>/dev/null | head -1 | cut -d= -f2)
-      not_set=$(grep -E "# (CONFIG_NOMOUNT|CONFIG_ZEROMOUNT) is not set" "$DOT_CONFIG" 2>/dev/null | head -1)
-    else
-      val=$(grep "^${symbol}=" "$DOT_CONFIG" 2>/dev/null | head -1 | cut -d= -f2)
-      not_set=$(grep "# ${symbol} is not set" "$DOT_CONFIG" 2>/dev/null)
-    fi
+    val=$(grep "^${symbol}=" "$DOT_CONFIG" 2>/dev/null | head -1 | cut -d= -f2)
+    not_set=$(grep "# ${symbol} is not set" "$DOT_CONFIG" 2>/dev/null)
 
     if [ -n "$val" ]; then
       echo "| \`${symbol}\` | \`${val}\` |"

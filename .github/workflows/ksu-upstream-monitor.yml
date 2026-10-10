@@ -136,6 +136,15 @@ jobs:
               current_pin="$(tr -d '[:space:]' < "$pin_file")"
 
               if [ "$remote_sha" != "$current_pin" ] || [ "$FORCE_BUILD" = "true" ]; then
+                # Confirm the commit really exists and is reachable from the
+                # tracked branch before adopting it as a pin. The API can
+                # return a SHA for a commit that was force-pushed away moments
+                # later, and a bad pin only fails much later as a 40-minute
+                # kernel build error.
+                if ! git ls-remote --exit-code "https://github.com/${REPO[$v]}" "$remote_sha" >/dev/null 2>&1; then
+                  echo "::warning::$vd/$v: upstream reported ${remote_sha:0:7} but it is not fetchable; keeping ${current_pin:0:7}"
+                  continue
+                fi
                 echo "✨ $vd/$v: ${current_pin:0:7} -> ${remote_sha:0:7} ($branch)"
                 printf '%s\n' "$remote_sha" > "$pin_file"
                 CHANGED=1
@@ -154,7 +163,15 @@ jobs:
           if [ "$CHANGED" = "1" ] && ! git diff --quiet; then
             git add -A
             git commit -m "chore(upstream): update KSU variant pins ($UPDATED_FLAVOURS)"
-            git push origin HEAD:main
+
+            # Retry once behind a rebase: this job runs every six hours, so a
+            # human commit landing in the same window would otherwise make the
+            # push fail and silently skip the cycle.
+            if ! git push origin HEAD:main; then
+              echo "::notice::Push rejected, rebasing onto origin/main and retrying once"
+              git pull --rebase origin main
+              git push origin HEAD:main
+            fi
             echo "Pushed updated pins to main."
           elif [ "$CHANGED" = "1" ]; then
             echo "Pins reported as changed but no diff to commit."
