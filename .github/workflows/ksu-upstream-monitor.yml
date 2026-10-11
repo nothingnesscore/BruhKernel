@@ -59,13 +59,14 @@ jobs:
           declare -A BRANCH_MAIN=(
             [SukiSU]="main"
             [ReSukiSU]="main"
-            [KernelSU-Next]="next"
+            # "next" no longer exists upstream; dev is the live branch.
+            [KernelSU-Next]="dev"
             [WKSU]="canary"
           )
           declare -A BRANCH_BUILTIN=(
             [SukiSU]="builtin"
             [ReSukiSU]="main"
-            [KernelSU-Next]="next"
+            [KernelSU-Next]="dev"
             [WKSU]="canary"
           )
           declare -A PINFILE=(

@@ -104,6 +104,12 @@ jobs:
       variants: ${{ steps.variants.outputs.list }}
       matrix: ${{ steps.variants.outputs.matrix }}
     steps:
+      # The resolve job reads .github/inputs/*.json, so it must have the
+      # repository checked out. Without this the registry lookup failed with
+      # "targets.json missing" and every dispatch died before building.
+      - name: Checkout
+        uses: actions/checkout@v4
+
       - name: Parse inputs
         id: parse
         run: |
