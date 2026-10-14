@@ -19,13 +19,12 @@ CONFIG_TCP_CONG_BIC=n
 CONFIG_TCP_CONG_WESTWOOD=n
 CONFIG_TCP_CONG_HTCP=n
 
-# fq qdisc pairs with BBRv3 pacing. Stock peridot ships default_qdisc=pfifo_fast,
-# which has no pacing and lets the tether queue build into added latency.
-# Select DEFAULT_FQ (not DEFAULT_NET_SCH): DEFAULT_NET_SCH is a derived string
-# computed from the DEFAULT_* booleans, and setting it directly is rejected by
-# kconfig's config verification with "Are they declared in Kconfig?".
-CONFIG_NET_SCH_FQ=y
-CONFIG_DEFAULT_FQ=y
+# qdisc: deliberately not overridden here. CONFIG_NET_SCH_FQ=y is already in the
+# GKI defconfig and CONFIG_DEFAULT_FQ lives inside the "Default queuing
+# discipline" choice, whose members Kleaf's fragment verification rejects when
+# set from a fragment ("Are they declared in Kconfig?"). fq_codel is already the
+# GKI default and pairs with BBRv3, so the kernel ends up on a paced qdisc
+# either way. Set CONFIG_DEFAULT_FQ=y here only if the build stops using Kleaf.
 
 # [susfs]
 CONFIG_KSU_SUSFS=y
