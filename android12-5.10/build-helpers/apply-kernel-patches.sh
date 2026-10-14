@@ -13,30 +13,44 @@ MAJOR="${KERNEL_VER%%.*}"
 MINOR="${KERNEL_VER#*.}"
 COMMON="$PATCHES_DIR/common"
 
+# The upstream BBRv3 backports are named per android+kernel pair, e.g.
+# 0001-net-tcp-backport-BBRv3-to-android14-6.1.patch. ANDROID_VER (14) is
+# exported by the workflow; derive it from VERSION_DIR when unset so the script
+# also works when invoked directly.
+VERSION_DIR="${VERSION_DIR:-}"
+if [ -z "${ANDROID_VER:-}" ] && [ -n "$VERSION_DIR" ]; then
+  ANDROID_VER="${VERSION_DIR%%-*}"
+fi
+ANDROID_VER="${ANDROID_VER:-}"
+
 apply() { patch -p1 -F3 --forward < "$1" || true; }
 
 cd "$KERNEL_DIR"
 
 # ── BBRv3 congestion control ───────────────────────────────────────────────
-# The defconfig already sets CONFIG_DEFAULT_TCP_CONG="bbr", but upstream 6.1
-# only ships BBRv1, which under-performs on lossy mobile links. This backport
-# brings BBRv3 (plus PLB) per kernel version so tethered/cellular sessions
-# recover faster from loss and keep a lower standing queue.
+# The defconfig already sets CONFIG_DEFAULT_TCP_CONG, but upstream 6.1 only
+# ships BBRv1, which under-performs on lossy mobile links. This backport brings
+# BBRv3 (plus PLB) so tethered/cellular sessions recover faster from loss and
+# keep a lower standing queue.
 #
 # Applied before the memory/scheduler patches because it rewrites net/ipv4,
 # which nothing below touches.
 if [ "$ADD_BBRV3" = "true" ]; then
-  BBRV3_PATCH="$COMMON/bbrv3/0001-net-tcp-backport-BBRv3-to-android${MAJOR}-${MINOR}.patch"
-  if [ -f "$BBRV3_PATCH" ]; then
-    if apply "$BBRV3_PATCH"; then
-      echo "apply-kernel-patches: BBRv3 applied ($MAJOR.$MINOR)"
-    else
-      echo "apply-kernel-patches: WARNING BBRv3 patch did not apply cleanly ($MAJOR.$MINOR)"
-      # A partial apply would leave a broken TCP stack, so surface it loudly.
-      echo "apply-kernel-patches: WARNING check net/ipv4/tcp_bbr3.c before trusting this build"
-    fi
+  if [ -z "$ANDROID_VER" ]; then
+    echo "apply-kernel-patches: ANDROID_VER unknown, cannot locate BBRv3 patch"
   else
-    echo "apply-kernel-patches: no BBRv3 patch for android${MAJOR}-${MINOR}, skipping"
+    BBRV3_PATCH="$COMMON/bbrv3/0001-net-tcp-backport-BBRv3-to-android${ANDROID_VER}-${KERNEL_VER}.patch"
+    if [ -f "$BBRV3_PATCH" ]; then
+      apply "$BBRV3_PATCH"
+      if [ -f "$KERNEL_DIR/net/ipv4/tcp_bbr3.c" ]; then
+        echo "apply-kernel-patches: BBRv3 applied (android${ANDROID_VER}-${KERNEL_VER})"
+      else
+        echo "apply-kernel-patches: WARNING BBRv3 patch did not produce tcp_bbr3.c"
+        echo "apply-kernel-patches: WARNING the kernel will fall back to BBRv1"
+      fi
+    else
+      echo "apply-kernel-patches: no BBRv3 patch for android${ANDROID_VER}-${KERNEL_VER}, skipping"
+    fi
   fi
 fi
 
