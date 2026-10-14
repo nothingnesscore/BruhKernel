@@ -7,6 +7,7 @@ PATCHES_DIR="${3:?}"
 
 ADD_PTRACE="${ADD_PTRACE:-true}"
 ADD_PERF="${ADD_PERF:-true}"
+ADD_BBRV3="${ADD_BBRV3:-true}"
 
 MAJOR="${KERNEL_VER%%.*}"
 MINOR="${KERNEL_VER#*.}"
@@ -15,6 +16,29 @@ COMMON="$PATCHES_DIR/common"
 apply() { patch -p1 -F3 --forward < "$1" || true; }
 
 cd "$KERNEL_DIR"
+
+# ── BBRv3 congestion control ───────────────────────────────────────────────
+# The defconfig already sets CONFIG_DEFAULT_TCP_CONG="bbr", but upstream 6.1
+# only ships BBRv1, which under-performs on lossy mobile links. This backport
+# brings BBRv3 (plus PLB) per kernel version so tethered/cellular sessions
+# recover faster from loss and keep a lower standing queue.
+#
+# Applied before the memory/scheduler patches because it rewrites net/ipv4,
+# which nothing below touches.
+if [ "$ADD_BBRV3" = "true" ]; then
+  BBRV3_PATCH="$COMMON/bbrv3/0001-net-tcp-backport-BBRv3-to-android${MAJOR}-${MINOR}.patch"
+  if [ -f "$BBRV3_PATCH" ]; then
+    if apply "$BBRV3_PATCH"; then
+      echo "apply-kernel-patches: BBRv3 applied ($MAJOR.$MINOR)"
+    else
+      echo "apply-kernel-patches: WARNING BBRv3 patch did not apply cleanly ($MAJOR.$MINOR)"
+      # A partial apply would leave a broken TCP stack, so surface it loudly.
+      echo "apply-kernel-patches: WARNING check net/ipv4/tcp_bbr3.c before trusting this build"
+    fi
+  else
+    echo "apply-kernel-patches: no BBRv3 patch for android${MAJOR}-${MINOR}, skipping"
+  fi
+fi
 
 if [ "$ADD_PTRACE" = "true" ] && [ -f "$PATCHES_DIR/gki_ptrace.patch" ]; then
   if [ "$MAJOR" -lt 5 ] || { [ "$MAJOR" -eq 5 ] && [ "$MINOR" -lt 16 ]; }; then

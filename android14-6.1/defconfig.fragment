@@ -6,12 +6,23 @@ CONFIG_KALLSYMS=y
 CONFIG_KALLSYMS_ALL=y
 CONFIG_KSU_MULTI_MANAGER_SUPPORT=y
 CONFIG_TCP_CONG_ADVANCED=y
+# BBRv3 backport (applied by apply-kernel-patches.sh). Upstream 6.1 only has
+# BBRv1; v3 keeps a lower standing queue and recovers faster from loss, which
+# matters on a lossy mobile uplink (e.g. tethered 5G) rather than a fixed
+# broadband path. The backport defines DEFAULT_BBR3 and wires it into
+# DEFAULT_TCP_CONG, so selecting bbr3 here works only once it is applied.
 CONFIG_TCP_CONG_BBR=y
-CONFIG_DEFAULT_BBR=y
-CONFIG_DEFAULT_TCP_CONG="bbr"
+CONFIG_TCP_CONG_BBR3=y
+CONFIG_DEFAULT_BBR3=y
+CONFIG_DEFAULT_TCP_CONG="bbr3"
 CONFIG_TCP_CONG_BIC=n
 CONFIG_TCP_CONG_WESTWOOD=n
 CONFIG_TCP_CONG_HTCP=n
+
+# fq qdisc pairs with BBRv3 pacing. Stock peridot ships default_qdisc=pfifo_fast,
+# which has no pacing and lets the tether queue build up into added latency.
+CONFIG_NET_SCH_FQ=y
+CONFIG_DEFAULT_NET_SCH="fq"
 
 # [susfs]
 CONFIG_KSU_SUSFS=y
