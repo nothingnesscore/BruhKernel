@@ -14,14 +14,19 @@ MINOR="${KERNEL_VER#*.}"
 COMMON="$PATCHES_DIR/common"
 
 # The upstream BBRv3 backports are named per android+kernel pair, e.g.
-# 0001-net-tcp-backport-BBRv3-to-android14-6.1.patch. ANDROID_VER (14) is
-# exported by the workflow; derive it from VERSION_DIR when unset so the script
-# also works when invoked directly.
+# 0001-net-tcp-backport-BBRv3-to-android14-6.1.patch. The workflow passes
+# ANDROID_VER as the bare android number ("14"), but other callers pass the
+# full directory name ("android14-6.1"), so normalise before use.
 VERSION_DIR="${VERSION_DIR:-}"
-if [ -z "${ANDROID_VER:-}" ] && [ -n "$VERSION_DIR" ]; then
-  ANDROID_VER="${VERSION_DIR%%-*}"
-fi
 ANDROID_VER="${ANDROID_VER:-}"
+if [ -n "$ANDROID_VER" ]; then
+  ANDROID_VER="${ANDROID_VER#android}"
+  ANDROID_VER="${ANDROID_VER%%-*}"
+fi
+if [ -z "$ANDROID_VER" ] && [ -n "$VERSION_DIR" ]; then
+  ANDROID_VER="${VERSION_DIR#android}"
+  ANDROID_VER="${ANDROID_VER%%-*}"
+fi
 
 apply() { patch -p1 -F3 --forward < "$1" || true; }
 
