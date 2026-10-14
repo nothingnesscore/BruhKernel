@@ -20,9 +20,12 @@ CONFIG_TCP_CONG_WESTWOOD=n
 CONFIG_TCP_CONG_HTCP=n
 
 # fq qdisc pairs with BBRv3 pacing. Stock peridot ships default_qdisc=pfifo_fast,
-# which has no pacing and lets the tether queue build up into added latency.
+# which has no pacing and lets the tether queue build into added latency.
+# Select DEFAULT_FQ (not DEFAULT_NET_SCH): DEFAULT_NET_SCH is a derived string
+# computed from the DEFAULT_* booleans, and setting it directly is rejected by
+# kconfig's config verification with "Are they declared in Kconfig?".
 CONFIG_NET_SCH_FQ=y
-CONFIG_DEFAULT_NET_SCH="fq"
+CONFIG_DEFAULT_FQ=y
 
 # [susfs]
 CONFIG_KSU_SUSFS=y
