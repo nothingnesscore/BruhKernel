@@ -6,7 +6,7 @@
     "setup_raw": "main",
     "setup_branch": "main",
     "setup_script": "kernel/setup.sh",
-    "dir": "OriginSU",
+    "dir": "KernelSU",
     "pin": "originsu-pin.txt",
     "patchdir": "OriginSU",
     "safety": "originsu",

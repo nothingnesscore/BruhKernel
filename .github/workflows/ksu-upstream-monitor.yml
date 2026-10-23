@@ -175,7 +175,7 @@ jobs:
               -f sub_level="$SL" \
               -f os_patch_level="$SPL" \
               -f ksu_variant="$f" \
-              -f add_susfs=false \
+              -f add_susfs=true \
               -f add_zram=true \
               -f add_bbg=true \
               -f add_overlayfs_support=true \
