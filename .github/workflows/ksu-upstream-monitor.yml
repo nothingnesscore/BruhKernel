@@ -14,10 +14,8 @@ on:
         type: choice
         options:
           - All
-          - SukiSU
-          - ReSukiSU
-          - KernelSU-Next
-          - WKSU
+          - OriginSU
+          - FinaSU
         default: "All"
 
 permissions:
@@ -46,48 +44,29 @@ jobs:
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
 
           # Variant -> upstream repo, branch to track, pin filename.
-          # android14-6.1 tracks SukiSU main; the other seven directories are
-          # built from the 'builtin' branch (see setup.sh "bash -s builtin"),
-          # whose 6c5603f pin is not reachable from main. Tracking main for
-          # them would silently jump 3774 commits and break their patches.
           declare -A REPO=(
-            [SukiSU]="SukiSU-Ultra/SukiSU-Ultra"
-            [ReSukiSU]="ReSukiSU/ReSukiSU"
-            [KernelSU-Next]="KernelSU-Next/KernelSU-Next"
-            [WKSU]="WildKernels/Wild_KSU"
+            [OriginSU]="samakshkambxj/OriginSU"
+            [FinaSU]="LyraVoid/FinaSU"
           )
-          declare -A BRANCH_MAIN=(
-            [SukiSU]="main"
-            [ReSukiSU]="main"
-            # "next" no longer exists upstream; dev is the live branch.
-            [KernelSU-Next]="dev"
-            [WKSU]="canary"
-          )
-          declare -A BRANCH_BUILTIN=(
-            [SukiSU]="builtin"
-            [ReSukiSU]="main"
-            [KernelSU-Next]="dev"
-            [WKSU]="canary"
+          declare -A BRANCH=(
+            [OriginSU]="main"
+            [FinaSU]="master"
           )
           declare -A PINFILE=(
-            [SukiSU]="sukisu-pin.txt"
-            [ReSukiSU]="resukisu-pin.txt"
-            [KernelSU-Next]="kernelsu-next-pin.txt"
-            [WKSU]="wksu-pin.txt"
+            [OriginSU]="originsu-pin.txt"
+            [FinaSU]="finasu-pin.txt"
           )
 
-          # android12-5.4 ships only the SukiSU and ReSukiSU pins.
           VERSION_DIRS=(
             android12-5.4 android12-5.10 android13-5.10 android13-5.15
             android14-5.15 android14-6.1 android15-6.6 android16-6.12
           )
           AVAIL_VARIANTS=(
-            SukiSU ReSukiSU KernelSU-Next WKSU
+            OriginSU FinaSU
           )
 
           # Resolve each variant's branch tip once per run.
-          declare -A SHA_MAIN=()
-          declare -A SHA_BUILTIN=()
+          declare -A SHA=()
 
           fetch_sha() {
             local repo="$1" branch="$2"
@@ -103,13 +82,12 @@ jobs:
               continue
             fi
             repo="${REPO[$v]}"
-            SHA_MAIN[$v]="$(fetch_sha "$repo" "${BRANCH_MAIN[$v]}")"
-            SHA_BUILTIN[$v]="$(fetch_sha "$repo" "${BRANCH_BUILTIN[$v]}")"
-            if [ -z "${SHA_MAIN[$v]}" ] || [ -z "${SHA_BUILTIN[$v]}" ]; then
+            SHA[$v]="$(fetch_sha "$repo" "${BRANCH[$v]}")"
+            if [ -z "${SHA[$v]}" ]; then
               echo "::warning::Could not resolve upstream SHA for $v ($repo)"
               continue
             fi
-            echo "$v: ${BRANCH_MAIN[$v]}=${SHA_MAIN[$v]:0:7} ${BRANCH_BUILTIN[$v]}=${SHA_BUILTIN[$v]:0:7}"
+            echo "$v: ${BRANCH[$v]}=${SHA[$v]:0:7}"
           done
 
           UPDATED_FLAVOURS=""
@@ -124,20 +102,13 @@ jobs:
               pin_file="$vd/${PINFILE[$v]}"
               [ -f "$pin_file" ] || continue
 
-              # android14-6.1 builds from main; every other directory from builtin.
-              if [ "$vd" = "android14-6.1" ]; then
-                branch="${BRANCH_MAIN[$v]}"
-                remote_sha="${SHA_MAIN[$v]}"
-              else
-                branch="${BRANCH_BUILTIN[$v]}"
-                remote_sha="${SHA_BUILTIN[$v]}"
-              fi
+              remote_sha="${SHA[$v]}"
               [ -n "$remote_sha" ] || continue
 
               current_pin="$(tr -d '[:space:]' < "$pin_file")"
 
               if [ "$remote_sha" != "$current_pin" ] || [ "$FORCE_BUILD" = "true" ]; then
-                echo "✨ $vd/$v: ${current_pin:0:7} -> ${remote_sha:0:7} ($branch)"
+                echo "✨ $vd/$v: ${current_pin:0:7} -> ${remote_sha:0:7} (${BRANCH[$v]})"
                 printf '%s\n' "$remote_sha" > "$pin_file"
                 CHANGED=1
                 case " $UPDATED_FLAVOURS " in
@@ -182,13 +153,12 @@ jobs:
 
           for f in $UPDATED_FLAVOURS; do
             echo "Dispatching kernel build for $f..."
-            # -f key=value is the correct form; the previous '-f=true' was not.
             gh workflow run build.yml \
               -f kernel_version_dir="$VD" \
               -f sub_level="$SL" \
               -f os_patch_level="$SPL" \
               -f ksu_variant="$f" \
-              -f add_susfs=true \
+              -f add_susfs=false \
               -f add_zram=true \
               -f add_bbg=true \
               -f add_overlayfs_support=true \

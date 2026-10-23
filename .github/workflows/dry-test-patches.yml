@@ -30,12 +30,12 @@ on:
         type: string
         default: "2024-05"
       ksu_variant:
-        description: "KernelSU variant"
+        description: "Root variant"
         type: choice
-        options: [SukiSU, ReSukiSU, KernelSU-Next, WKSU]
-        default: "SukiSU"
-      sukisu_commit:
-        description: "SukiSU commit (empty = pinned default)"
+        options: [OriginSU, FinaSU]
+        default: "OriginSU"
+      variant_commit:
+        description: "Variant commit (empty = pinned default)"
         type: string
         default: ""
   workflow_call:
@@ -54,8 +54,8 @@ on:
         required: true
       ksu_variant:
         type: string
-        default: "SukiSU"
-      sukisu_commit:
+        default: "OriginSU"
+      variant_commit:
         type: string
         default: ""
 
@@ -120,7 +120,7 @@ jobs:
     timeout-minutes: 45
     env:
       KSU_VARIANT: ${{ inputs.ksu_variant }}
-      KSU_DIR: KernelSU
+      KSU_DIR: ${{ inputs.ksu_variant }}
 
     steps:
     - name: Checkout Repository
@@ -147,6 +147,12 @@ jobs:
         VERSION_DIR="${ANDROID_VER}-${KERNEL_VER}"
         mkdir -p "$KERNEL_ROOT"
 
+        case "$KSU_VARIANT" in
+          OriginSU) DEFCONFIG_FRAGMENT="originsu_gki.fragment" ;;
+          FinaSU)   DEFCONFIG_FRAGMENT="finasu_gki.fragment" ;;
+          *)        DEFCONFIG_FRAGMENT="sukisu_gki.fragment" ;;
+        esac
+
         {
           echo "ANDROID_VER=$ANDROID_VER"
           echo "KERNEL_VER=$KERNEL_VER"
@@ -155,7 +161,7 @@ jobs:
           echo "KERNEL_ROOT=$KERNEL_ROOT"
           echo "VERSION_DIR=$VERSION_DIR"
           echo "DEFCONFIG=$KERNEL_ROOT/common/arch/arm64/configs/gki_defconfig"
-          echo "DEFCONFIG_FRAGMENT=$KERNEL_ROOT/common/arch/arm64/configs/sukisu_gki.fragment"
+          echo "DEFCONFIG_FRAGMENT=$KERNEL_ROOT/common/arch/arm64/configs/$DEFCONFIG_FRAGMENT"
         } >> "$GITHUB_ENV"
 
     - name: Sync Kernel Source
@@ -198,33 +204,29 @@ jobs:
     - name: Setup KSU Variant
       working-directory: ${{ env.KERNEL_ROOT }}
       env:
-        SUKISU_COMMIT: ${{ inputs.sukisu_commit }}
+        VARIANT_COMMIT: ${{ inputs.variant_commit }}
       run: |
         case "$KSU_VARIANT" in
-          ReSukiSU)
-            curl -LSs "https://raw.githubusercontent.com/ReSukiSU/ReSukiSU/main/kernel/setup.sh" | bash -s susfs-ksud
-            PIN_FILE="resukisu-pin.txt"
-            ;;
-          KernelSU-Next)
-            curl -LSs "https://raw.githubusercontent.com/KernelSU-Next/KernelSU-Next/next/kernel/setup.sh" | bash -s next
-            KSU_DIR="KernelSU-Next"
+          OriginSU)
+            curl -LSs "https://raw.githubusercontent.com/samakshkambxj/OriginSU/main/kernel/setup.sh" | bash -s main
+            KSU_DIR="OriginSU"
             echo "KSU_DIR=$KSU_DIR" >> "$GITHUB_ENV"
-            PIN_FILE="kernelsu-next-pin.txt"
+            PIN_FILE="originsu-pin.txt"
             ;;
-          WKSU)
-            curl -LSs "https://raw.githubusercontent.com/WildKernels/Wild_KSU/stable/kernel/setup.sh" | bash -s canary
-            KSU_DIR="Wild_KSU"
+          FinaSU)
+            echo "FinaSU is an LKM-based variant; dry-test skips kernel setup."
+            KSU_DIR="FinaSU"
             echo "KSU_DIR=$KSU_DIR" >> "$GITHUB_ENV"
-            PIN_FILE="wksu-pin.txt"
+            PIN_FILE="finasu-pin.txt"
             ;;
           *)
-            curl -LSs "https://raw.githubusercontent.com/SukiSU-Ultra/SukiSU-Ultra/main/kernel/setup.sh" | bash -s builtin
-            PIN_FILE="sukisu-pin.txt"
+            echo "::error::Unknown variant $KSU_VARIANT"
+            exit 1
             ;;
         esac
         [ -d "$KERNEL_ROOT/$KSU_DIR" ] || { echo "FATAL: $KSU_DIR not created by setup.sh"; exit 1; }
 
-        PIN="${SUKISU_COMMIT:-$(cat "$GITHUB_WORKSPACE/$VERSION_DIR/$PIN_FILE" 2>/dev/null || true)}"
+        PIN="${VARIANT_COMMIT:-$(cat "$GITHUB_WORKSPACE/$VERSION_DIR/$PIN_FILE" 2>/dev/null || true)}"
         if [ -n "$PIN" ]; then
           cd "$KERNEL_ROOT/$KSU_DIR"
           git fetch origin
@@ -240,35 +242,12 @@ jobs:
     - name: Apply Patches
       run: |
         case "$KSU_VARIANT" in
-          ReSukiSU) PATCH_DIR="$GITHUB_WORKSPACE/$VERSION_DIR/ReSukiSU/patches" ;;
-          KernelSU-Next) PATCH_DIR="$GITHUB_WORKSPACE/$VERSION_DIR/KernelSU-Next/patches" ;;
-          WKSU) PATCH_DIR="$GITHUB_WORKSPACE/$VERSION_DIR/WildKSU/patches" ;;
-          *)        PATCH_DIR="$GITHUB_WORKSPACE/$VERSION_DIR/SukiSU-Ultra/patches" ;;
+          OriginSU) PATCH_DIR="$GITHUB_WORKSPACE/$VERSION_DIR/OriginSU/patches" ;;
+          FinaSU)   PATCH_DIR="$GITHUB_WORKSPACE/$VERSION_DIR/FinaSU/patches" ;;
         esac
         RESULTS=""
 
-        PATCH_50="$PATCH_DIR/50_add_susfs_in_gki-${ANDROID_VER}-${KERNEL_VER}.patch"
-        if [ -f "$PATCH_50" ]; then
-          if patch -p1 -F3 --no-backup-if-mismatch -d "$KERNEL_ROOT/common" < "$PATCH_50"; then
-            RESULTS="${RESULTS}50_upstream_susfs|applied\n"
-          else
-            RESULTS="${RESULTS}50_upstream_susfs|FAILED\n"
-          fi
-        else
-          RESULTS="${RESULTS}50_upstream_susfs|skipped (no patch)\n"
-        fi
-
-        PATCH_51="$PATCH_DIR/51_enhanced_susfs-${ANDROID_VER}-${KERNEL_VER}.patch"
-        if [ -f "$PATCH_51" ]; then
-          if patch -p1 -F3 --no-backup-if-mismatch -d "$KERNEL_ROOT/common" < "$PATCH_51"; then
-            RESULTS="${RESULTS}51_enhanced_susfs|applied\n"
-          else
-            RESULTS="${RESULTS}51_enhanced_susfs|FAILED\n"
-          fi
-        else
-          RESULTS="${RESULTS}51_enhanced_susfs|skipped (no patch)\n"
-        fi
-
+        # OriginSU and FinaSU bundle SUSFS internally; no external 50_/51_ patches.
         PATCH_70="$PATCH_DIR/70_ksu_safety-${KSU_VARIANT,,}-${KERNEL_VER}.patch"
         if [ -s "$PATCH_70" ]; then
           if patch -p1 --no-backup-if-mismatch -d "$KERNEL_ROOT/$KSU_DIR" < "$PATCH_70"; then
@@ -278,17 +257,6 @@ jobs:
           fi
         else
           RESULTS="${RESULTS}70_ksu_safety|skipped (no patch)\n"
-        fi
-
-        PATCH_60="$PATCH_DIR/60_zeromount-${ANDROID_VER}-${KERNEL_VER}.patch"
-        if [ -f "$PATCH_60" ]; then
-          if patch -p1 -F3 --no-backup-if-mismatch -d "$KERNEL_ROOT/common" < "$PATCH_60"; then
-            RESULTS="${RESULTS}60_zeromount|applied\n"
-          else
-            RESULTS="${RESULTS}60_zeromount|FAILED\n"
-          fi
-        else
-          RESULTS="${RESULTS}60_zeromount|skipped (no patch)\n"
         fi
 
         echo "PATCH_RESULTS<<EOF" >> "$GITHUB_ENV"
@@ -416,5 +384,5 @@ jobs:
           echo ""
           echo "**Rejects:** ${REJ_COUNT:-0}"
           echo ""
-          echo "**SukiSU variant:** $KSU_VARIANT"
+          echo "**Root variant:** $KSU_VARIANT"
         } >> "$GITHUB_STEP_SUMMARY"

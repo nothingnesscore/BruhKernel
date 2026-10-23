@@ -78,10 +78,8 @@
       }
     ],
     "variants": [
-      "KernelSU-Next",
-      "ReSukiSU",
-      "SukiSU",
-      "WKSU"
+      "OriginSU",
+      "FinaSU"
     ]
   },
   "android12-5.4": {
@@ -99,8 +97,8 @@
       }
     ],
     "variants": [
-      "ReSukiSU",
-      "SukiSU"
+      "OriginSU",
+      "FinaSU"
     ]
   },
   "android13-5.10": {
@@ -262,10 +260,8 @@
       }
     ],
     "variants": [
-      "KernelSU-Next",
-      "ReSukiSU",
-      "SukiSU",
-      "WKSU"
+      "OriginSU",
+      "FinaSU"
     ]
   },
   "android13-5.15": {
@@ -351,10 +347,8 @@
       }
     ],
     "variants": [
-      "KernelSU-Next",
-      "ReSukiSU",
-      "SukiSU",
-      "WKSU"
+      "OriginSU",
+      "FinaSU"
     ]
   },
   "android14-5.15": {
@@ -420,10 +414,8 @@
       }
     ],
     "variants": [
-      "KernelSU-Next",
-      "ReSukiSU",
-      "SukiSU",
-      "WKSU"
+      "OriginSU",
+      "FinaSU"
     ]
   },
   "android14-6.1": {
@@ -521,10 +513,8 @@
       }
     ],
     "variants": [
-      "KernelSU-Next",
-      "ReSukiSU",
-      "SukiSU",
-      "WKSU"
+      "OriginSU",
+      "FinaSU"
     ]
   },
   "android15-6.6": {
@@ -606,10 +596,8 @@
       }
     ],
     "variants": [
-      "KernelSU-Next",
-      "ReSukiSU",
-      "SukiSU",
-      "WKSU"
+      "OriginSU",
+      "FinaSU"
     ]
   },
   "android16-6.12": {
@@ -643,10 +631,8 @@
       }
     ],
     "variants": [
-      "KernelSU-Next",
-      "ReSukiSU",
-      "SukiSU",
-      "WKSU"
+      "OriginSU",
+      "FinaSU"
     ]
   }
 }
