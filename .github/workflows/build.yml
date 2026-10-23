@@ -47,14 +47,12 @@ on:
         type: string
         default: "2025-06"
       ksu_variant:
-        description: "KernelSU variant"
+        description: "Root variant"
         type: choice
-        default: "SukiSU"
+        default: "OriginSU"
         options:
-          - SukiSU
-          - ReSukiSU
-          - KernelSU-Next
-          - WKSU
+          - OriginSU
+          - FinaSU
           - All
       add_susfs:
         description: "Add SUSFS root-hiding"
@@ -77,7 +75,7 @@ on:
         type: boolean
         default: true
       add_kpm:
-        description: "Add KPM (SukiSU and ReSukiSU only)"
+        description: "Add KPM (OriginSU only)"
         type: boolean
         default: false
       add_hybridmount_vfs:
@@ -91,7 +89,7 @@ on:
         options:
           - peridot
           - generic
-      sukisu_commit:
+      variant_commit:
         description: "Pin a specific upstream commit (empty = use *-pin.txt)"
         type: string
         default: ""
@@ -181,7 +179,7 @@ jobs:
           VARIANTS="$GITHUB_WORKSPACE/.github/inputs/variants.json"
 
           # Not every version ships every variant: android12-5.4 has only the
-          # SukiSU and ReSukiSU pins. Only CR is stripped, not all whitespace:
+          # OriginSU and FinaSU pins. Only CR is stripped, not all whitespace:
           # [:space:] would also remove the newlines that separate the names.
           SUPPORTED=$(jq -r --arg vd "$VD" '.[$vd].variants[]?' "$TARGETS" | tr -d '\r')
           if [ -z "$SUPPORTED" ]; then
@@ -270,6 +268,6 @@ jobs:
       add_overlayfs_support: ${{ inputs.add_overlayfs_support }}
       add_kpm: ${{ inputs.add_kpm }}
       add_hybridmount_vfs: ${{ inputs.add_hybridmount_vfs }}
-      sukisu_commit: ${{ inputs.sukisu_commit }}
+      variant_commit: ${{ inputs.variant_commit }}
       device_codename: ${{ inputs.device_codename }}
       matrix: ${{ needs.resolve.outputs.matrix }}

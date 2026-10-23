@@ -2,10 +2,8 @@ name: "Build GKI Kernel"
 
 # One builder for all four KernelSU variants. The four previous builders
 # (build-sukisu / build-resukisu / build-ksu-next / build-wksu) differed only in
-# the values resolved by the `variant` matrix below: upstream repo, checkout
-# branch, checkout directory, pin file, patch directory, safety-patch slug,
-# fragment name and version suffix. Keeping them as four files meant every fix
-# to the shared ~500-line body had to be applied four times.
+# the values resolved by the `variant` matrix below. Keeping them as four files
+# meant every fix to the shared ~500-line body had to be applied four times.
 
 permissions:
   contents: write
@@ -60,7 +58,7 @@ on:
         description: "Apply BBRv3 congestion control (better latency on lossy mobile links)"
         type: boolean
         default: true
-      sukisu_commit:
+      variant_commit:
         type: string
         default: ""
       device_codename:
@@ -90,6 +88,8 @@ jobs:
       KSU_SAFETY: ${{ matrix.variant.safety }}
       KSU_FRAGMENT: ${{ matrix.variant.fragment }}
       KSU_SUFFIX: ${{ matrix.variant.suffix }}
+      KSU_SETUP_SCRIPT: ${{ matrix.variant.setup_script }}
+      SKIP_GKI_BUILD: ${{ matrix.variant.skip_gki_build }}
 
     steps:
     - name: Checkout Repository
@@ -131,7 +131,7 @@ jobs:
         name: kernel-patches
         path: kernel_patches
 
-    - name: Download SukiSU Patch
+    - name: Download ZRAM Patch
       if: inputs.add_zram
       uses: actions/download-artifact@v4
       with:
@@ -206,18 +206,19 @@ jobs:
         } >> "$GITHUB_ENV"
 
     - name: Setup KernelSU
+      if: ${{ !matrix.variant.skip_gki_build }}
       working-directory: ${{ env.KERNEL_ROOT }}
       env:
-        SUKISU_COMMIT: ${{ inputs.sukisu_commit }}
+        VARIANT_COMMIT: ${{ inputs.variant_commit }}
         KSU_REPO: ${{ matrix.variant.repo }}
         KSU_SETUP_RAW: ${{ matrix.variant.setup_raw }}
         KSU_SETUP_BRANCH: ${{ matrix.variant.setup_branch }}
         KSU_PIN: ${{ matrix.variant.pin }}
       run: |
-        curl -LSs "https://raw.githubusercontent.com/$KSU_REPO/$KSU_SETUP_RAW/kernel/setup.sh" | bash -s "$KSU_SETUP_BRANCH"
+        curl -LSs "https://raw.githubusercontent.com/$KSU_REPO/$KSU_SETUP_RAW/$KSU_SETUP_SCRIPT" | bash -s "$KSU_SETUP_BRANCH"
         [ -d "$KERNEL_ROOT/$KSU_DIR" ] || { echo "FATAL: $KSU_DIR not created by setup.sh"; exit 1; }
 
-        PIN="${SUKISU_COMMIT:-$(cat "$GITHUB_WORKSPACE/$VERSION_DIR/$KSU_PIN" 2>/dev/null || true)}"
+        PIN="${VARIANT_COMMIT:-$(cat "$GITHUB_WORKSPACE/$VERSION_DIR/$KSU_PIN" 2>/dev/null || true)}"
         if [ -n "$PIN" ]; then
           cd "$KERNEL_ROOT/$KSU_DIR"
           git fetch origin
@@ -230,15 +231,16 @@ jobs:
         SUPERCALLS="drivers/kernelsu/supercalls.c"
         if [ -f "$SUPERCALLS" ]; then
           sed -i '/ksu_mark_running_process/d' "$SUPERCALLS"
-          # WKSU alone ships this hook; it references symbols that no longer
-          # exist, so leaving the unused function in place breaks the link.
-          if [ "$KSU_VARIANT" = "WKSU" ]; then
-            sed -i '/susfs_set_i_state_on_external_dir/d' "$SUPERCALLS"
-          fi
           if grep -q "vzalloc" "$SUPERCALLS" && ! head -5 "$SUPERCALLS" | grep -q "vmalloc.h"; then
             sed -i '1a #include <linux/vmalloc.h>' "$SUPERCALLS"
           fi
         fi
+
+    - name: LKM variant note
+      if: ${{ matrix.variant.skip_gki_build }}
+      run: |
+        echo "::notice::${KSU_VARIANT} is an LKM-based variant (${{ matrix.variant.build_model }})."
+        echo "Skipping GKI in-kernel build — use the FinaSU LKM pipeline (docker DDK + cargo-ndk) instead."
 
     - name: Fix Old Kernel Compatibility
       working-directory: ${{ env.KERNEL_ROOT }}/common
@@ -250,13 +252,23 @@ jobs:
       if: inputs.add_susfs
       working-directory: ${{ env.KERNEL_ROOT }}/common
       run: |
-        patch -p1 -F3 --no-backup-if-mismatch < "$GITHUB_WORKSPACE/$VERSION_DIR/$KSU_PATCHDIR/patches/50_add_susfs_in_gki-${ANDROID_VER}-${KERNEL_VER}.patch"
+        PATCH="$GITHUB_WORKSPACE/$VERSION_DIR/$KSU_PATCHDIR/patches/50_add_susfs_in_gki-${ANDROID_VER}-${KERNEL_VER}.patch"
+        if [ ! -s "$PATCH" ]; then
+          echo "No 50_ SUSFS patch for ${KSU_VARIANT} on ${KERNEL_VER} (absent or empty)"
+        else
+          patch -p1 -F3 --no-backup-if-mismatch < "$PATCH"
+        fi
 
     - name: Apply Enhanced SUSFS Patch
       if: inputs.add_susfs
       working-directory: ${{ env.KERNEL_ROOT }}/common
       run: |
-        patch -p1 -F3 --no-backup-if-mismatch < "$GITHUB_WORKSPACE/$VERSION_DIR/$KSU_PATCHDIR/patches/51_enhanced_susfs-${ANDROID_VER}-${KERNEL_VER}.patch"
+        PATCH="$GITHUB_WORKSPACE/$VERSION_DIR/$KSU_PATCHDIR/patches/51_enhanced_susfs-${ANDROID_VER}-${KERNEL_VER}.patch"
+        if [ ! -s "$PATCH" ]; then
+          echo "No 51_ SUSFS patch for ${KSU_VARIANT} on ${KERNEL_VER} (absent or empty)"
+        else
+          patch -p1 -F3 --no-backup-if-mismatch < "$PATCH"
+        fi
 
     - name: Apply KSU Safety Patch
       if: inputs.add_susfs
@@ -266,9 +278,7 @@ jobs:
         if [ ! -s "$PATCH" ]; then
           echo "No 70_ patch needed for ${KERNEL_VER} (absent or empty)"
         else
-          # A rejected safety patch must fail the build rather than be skipped:
-          # for SukiSU it carries the safe-mode latch, so continuing silently
-          # ships the known false-positive.
+          # A rejected safety patch must fail the build rather than be skipped.
           if ! patch -p1 -F3 --no-backup-if-mismatch < "$PATCH"; then
             echo "::error::Failed to apply $PATCH"
             exit 1
@@ -285,17 +295,6 @@ jobs:
           rm -f "$KERNEL_ROOT/common/drivers/kernelsu"
           cp -r "$KSU_TARGET" "$KERNEL_ROOT/common/drivers/kernelsu"
           echo "[+] Converted drivers/kernelsu symlink to physical directory for Bazel sandbox"
-        fi
-
-        # ReSukiSU only: neutralise its git-submodule gate and pin a local
-        # version, neither of which resolve inside the Bazel sandbox.
-        if [ "${{ matrix.variant.kbuild_fix }}" = "true" ]; then
-          sed -i 's/ifeq ($(LOCAL_GIT_EXISTS),0)/ifneq (1,1)/' \
-            "$KERNEL_ROOT/common/drivers/kernelsu/Kbuild" \
-            "$KERNEL_ROOT/$KSU_DIR/kernel/Kbuild" 2>/dev/null || true
-          sed -i 's/KSU_LOCAL_VERSION :=.*/KSU_LOCAL_VERSION := 100/' \
-            "$KERNEL_ROOT/common/drivers/kernelsu/Kbuild" \
-            "$KERNEL_ROOT/$KSU_DIR/kernel/Kbuild" 2>/dev/null || true
         fi
 
         # Ensure uapi headers are available to drivers/kernelsu
@@ -495,6 +494,7 @@ jobs:
         } >> "$GITHUB_ENV"
 
     - name: Build Kernel
+      if: ${{ !matrix.variant.skip_gki_build }}
       working-directory: ${{ env.KERNEL_ROOT }}
       run: |
         BUILD_RC=0
@@ -540,6 +540,7 @@ jobs:
         git push origin debug-logs --force
 
     - name: Prepare AnyKernel3
+      if: ${{ !matrix.variant.skip_gki_build }}
       run: |
         if [ -f "$KERNEL_ROOT/out/${ANDROID_VER}-${KERNEL_VER}/dist/Image" ]; then
           cp "$KERNEL_ROOT/out/${ANDROID_VER}-${KERNEL_VER}/dist/Image" "$ANYKERNEL3/Image"
@@ -571,6 +572,7 @@ jobs:
         fi
 
     - name: Upload Artifact
+      if: ${{ !matrix.variant.skip_gki_build }}
       uses: actions/upload-artifact@v4
       with:
         name: ${{ env.FILE_NAME }}-AnyKernel3

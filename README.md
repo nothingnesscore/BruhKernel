@@ -58,11 +58,11 @@ You do not need this repository checked out. Everything happens on GitHub.
 
 1. **Open the Actions tab** and run **Build BruhKernel**.
 2. **Accept the defaults.** They already target the POCO F6 / Redmi Turbo 3
-   (`android14-6.1`, sublevel `138`) with the SukiSU root variant.
-3. **Wait about 40 minutes.** Four variants compile in parallel, so it is one
-   wait, not four.
+   (`android14-6.1`, sublevel `138`) with the OriginSU root variant.
+3. **Wait about 40 minutes.** Two variants compile in parallel, so it is one
+   wait, not two.
 4. **Download the artifact.** At the bottom of the run you will find something
-   like `6.1.138-android14-2025-06-SukiSU-AnyKernel3`. That is your kernel.
+   like `6.1.138-android14-2025-06-OriginSU-AnyKernel3`. That is your kernel.
 5. **Flash it**, then reboot.
 
 To flash from a computer:
@@ -137,10 +137,10 @@ Every toggle has a sensible default. You can ignore all of them.
 | `add_zram` | on | **Compressed swap in RAM.** Replaces the stock ZRAM with an LZ4K/LZ4KD build that compresses better. |
 | `add_bbg` | on | **Baseband Guard.** Locks down the radio interface so more firmware is built into the kernel rather than a loadable module. |
 | `add_overlayfs_support` | on | **tmpfs extended attributes.** Required for modules to overlay files correctly. |
-| `add_kpm` | off | **Kernel Patch Module runtime.** Lets you load extra kernel patches at runtime without reflashing. Only SukiSU and ReSukiSU support it. |
+| `add_kpm` | off | **Kernel Patch Module runtime.** Lets you load extra kernel patches at runtime without reflashing. Only OriginSU supports it. |
 | `add_hybridmount_vfs` | on | **VFS redirection backend.** Keeps module mounts out of the mount tables. |
 | `device_codename` | `peridot` | Which device profile to copy the kernel version string from. Use `generic` to leave your real kernel version alone. |
-| `sukisu_commit` | empty | Pin a specific upstream root-solution commit instead of the tracked one. Leave empty unless you are testing a specific commit. |
+| `variant_commit` | empty | Pin a specific upstream root-solution commit instead of the tracked one. Leave empty unless you are testing a specific commit. |
 
 ### About `device_codename`
 
@@ -156,36 +156,33 @@ deliberate trade, since a wrong spoof is more suspicious than no spoof.
 
 ## Choosing a root variant
 
-All four give you root with SUSFS. They differ in how close they track upstream
-and how much extra tuning they carry.
+Both give you root with SUSFS built in. They differ in build model and features.
 
 | Variant | Best for | Notes |
 |---|---|---|
-| **SukiSU-Ultra** | **Most people.** Recommended default. | Tracks upstream KernelSU closely, supports KPM, actively maintained. |
-| **ReSukiSU** | Battery life and lighter background use. | Stripped-down SukiSU fork. |
-| **KernelSU-Next** | Long-running stable devices. | Conservative upstream fork. |
-| **WKSU** | Networking and throughput tuning. | Carries extra performance patches; most likely to need debugging. |
+| **OriginSU** | **Most people.** Recommended default. | GKI in-kernel build. Tracks upstream KernelSU closely via ReSukiSU lineage, supports KPM, built-in SUSFS and Origin Veil hiding. |
+| **FinaSU** | LKM-based root with advanced hiding. | Loadable kernel module (`kernelsu.ko`) built via docker DDK + cargo-ndk. Built-in FolkZygisk, Sui (Shizuku API), NoMount VFS backend, and SUSFS. Not built into the GKI image — uses a separate LKM pipeline. |
 
-Build one variant or all four. Pick a single one and you only wait for one
-compile instead of four.
+Build one variant or both. Pick a single one and you only wait for one compile.
 
 ---
 
 ## After flashing
 
 1. **Root is not finished until you install a manager.** The kernel provides
-   root; the app on your phone is what grants and revokes it. For SukiSU, install
-   the **SukiSU-Ultra manager** app.
-2. **Install the BruhMount metamodule.** SukiSU delegates module mounting to a
-   metamodule rather than doing it in the core. Without it, modules install but
-   do not take effect.
+   root; the app on your phone is what grants and revokes it. For OriginSU,
+   install the **OriginSU manager** app from its Releases page. For FinaSU,
+   install the **FinaSU manager** app.
+2. **Install the metamodule.** OriginSU delegates module mounting to a
+   metamodule. Without it, modules install but do not take effect. FinaSU uses
+   its built-in Folk-Mount/NoMount engine instead.
 3. **Reboot once more** after installing the manager.
 
 ### Updating after an OTA
 
 An OTA overwrites your kernel and removes root. To avoid this, install the OTA
 to the *inactive* slot first, flash your kernel zip to that slot from the
-SukiSU manager's patching screen, then reboot into it.
+manager's patching screen, then reboot into it.
 
 ---
 
@@ -235,8 +232,10 @@ BruhKernel/
 ├── android14-6.1/               ← one directory per GKI version
 │   ├── defconfig.fragment       ← which config options get enabled
 │   ├── build-helpers/           ← scripts that patch and configure the build
-│   ├── SukiSU-Ultra/patches/    ← SUSFS and safety patches
-│   ├── sukisu-pin.txt           ← which upstream commit this version tracks
+│   ├── OriginSU/patches/        ← safety patches for the OriginSU variant
+│   ├── originsu-pin.txt         ← which upstream commit this version tracks
+│   ├── FinaSU/patches/          ← placeholder patches for the FinaSU LKM variant
+│   ├── finasu-pin.txt           ← which upstream commit this version tracks
 │   └── README.md                ← detailed config documentation
 ├── zram/                        ← vendored LZ4 1.10.0
 ├── manifests/bbk/               ← OnePlus/OPPO kernel manifests
@@ -262,20 +261,22 @@ If you want to modify this repo rather than just use it, here is the path:
    exact sublevel, then a shallow sync. This is the slowest step and the bulk of
    the wall-clock time.
 4. **Install the root solution.** Clone the chosen variant's repo at the commit
-   in that version's `*-pin.txt`.
-5. **Apply patches.** SUSFS (`50_`, `51_`), then the variant safety patch
-   (`70_`), then per-version compatibility fixes, then optional Baseband Guard,
-   LZ4 and HybridMount.
+   in that version's `*-pin.txt`. OriginSU uses `kernel/setup.sh`; FinaSU uses
+   its own `build.sh` (LKM pipeline, skipped in the GKI builder).
+5. **Apply patches.** Variant safety patch (`70_`), then per-version
+   compatibility fixes, then optional Baseband Guard, LZ4 and HybridMount.
+   (OriginSU and FinaSU bundle SUSFS internally, so no external `50_`/`51_`
+   SUSFS patches are applied.)
 6. **Configure.** Merge `defconfig.fragment` into the kernel's defconfig, force
    ZRAM and tmpfs built-in, and strip anything the kernel does not declare.
-7. **Compile.** Bazel/Kleaf, or `build.sh` on older kernels.
+7. **Compile.** Bazel/Kleaf for GKI variants; FinaSU uses a separate docker/cargo
+   pipeline and is not compiled here.
 8. **Package.** Drop the `Image` into the AnyKernel3 zip and upload it.
 
 `ksu-upstream-monitor.yml` runs every six hours, checks each variant's upstream
 branch for new commits, updates the `*-pin.txt` files, and dispatches a build
-when something moves. Note that the seven versions other than `android14-6.1`
-track SukiSU's `builtin` branch rather than `main`, because that is the branch
-their builds were validated against.
+when something moves. Both `android14-6.1` and the other seven versions track
+OriginSU's `main` branch and FinaSU's `master` branch.
 
 ---
 
@@ -330,15 +331,11 @@ This project stands on a lot of other people's work.
 
 - **[tiann / KernelSU](https://github.com/tiann/KernelSU)** — the root
   architecture this is built around.
-- **[SukiSU-Ultra](https://github.com/SukiSU-Ultra/SukiSU-Ultra)** ·
-  **[ReSukiSU](https://github.com/ReSukiSU/ReSukiSU)** ·
-  **[KernelSU-Next](https://github.com/KernelSU-Next/KernelSU-Next)** ·
-  **[WildKSU](https://github.com/WildKernels/Wild_KSU)** — the root variants.
-- **[simonpunk / SUSFS](https://gitlab.com/simonpunk/susfs4ksu)** — root hiding.
+- **[samakshkambxj / OriginSU](https://github.com/samakshkambxj/OriginSU)** ·
+  **[LyraVoid / FinaSU](https://github.com/LyraVoid/FinaSU)** — the root variants.
+- **[simonpunk / SUSFS](https://gitlab.com/simonpunk/susfs4ksu)** — root hiding (built into both variants).
 - **[Hybrid-Mount](https://github.com/Hybrid-Mount/meta-hybrid_mount)** — the
   VFS redirection backend.
-- **[WildKernels](https://github.com/WildKernels)** — AnyKernel3 and the
-  performance patch set this builds on.
 - **[Enginex0](https://github.com/Enginex0)** — ZeroMount, and the Super-Builders
   CI architecture the pipeline grew out of.
 - **[Yann Collet / LZ4](https://github.com/lz4/lz4)** — the compressor vendored
