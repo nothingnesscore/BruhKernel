@@ -9,44 +9,28 @@ See the [root README](../README.md) for project overview and feature details.
 ## Directory Layout
 
 ```
-├── SukiSU-Ultra/patches/
-│   ├── 50_add_susfs_in_gki-*.patch      # upstream SUSFS
-│   ├── 51_enhanced_susfs-*.patch         # our enhancements
-│   ├── 60_zeromount-*.patch              # ZeroMount VFS driver
-│   └── 70_ksu_safety-sukisu-*.patch      # variant-specific fixes
-├── ReSukiSU/patches/                     # same 50_/51_/60_, different 70_
-├── KernelSU-Next/patches/                # same 50_/51_/60_, different 70_
-├── WildKSU/patches/                      # same 50_/51_/60_, different 70_
+├── OriginSU/patches/
+│   └── 70_ksu_safety-originsu-*.patch      # variant-specific fixes
+├── FinaSU/patches/
+│   └── 70_ksu_safety-finasu-*.patch        # placeholder (LKM variant, no GKI patches)
 ├── build-helpers/                        # sublevel compat scripts
 ├── defconfig.fragment                    # kernel config toggles
-├── sukisu-pin.txt                        # git commit pin for SukiSU fork
-├── resukisu-pin.txt                      # git commit pin for ReSukiSU fork
-├── kernelsu-next-pin.txt                 # git commit pin for KSU-Next fork
-└── wksu-pin.txt                          # git commit pin for WildKSU fork
+├── originsu-pin.txt                      # git commit pin for OriginSU fork
+├── finasu-pin.txt                        # git commit pin for FinaSU fork
+└── README.md                             # this file
 ```
 
-> **android12-5.4 only has SukiSU and ReSukiSU.** KSU-Next and WildKSU lack pre-5.7 kernel compatibility.
+> **All versions ship OriginSU and FinaSU.** FinaSU is an LKM-based variant and is not built into the GKI image.
 
 ---
 
 ## Patches
 
-Four patches per variant. Within the same kernel version, **50_, 51_, and 60_ are identical across all variants.** Only 70_ differs — it targets each KSU fork's specific codebase.
+OriginSU and FinaSU bundle SUSFS internally, so external `50_`/`51_` SUSFS patches are not applied. ZeroMount (`60_`) is replaced by HybridMount VFS backend.
 
 | Patch | Contents | Scope |
 |-------|----------|-------|
-| **50_** | Upstream SUSFS from [susfs4ksu](https://gitlab.com/simonpunk/susfs4ksu). Hooks readdir, namei, stat, proc, namespace, mount. Creates `fs/susfs.c` and supporting headers. | Shared |
-| **51_** | Our enhancements on top of upstream: Kconfig-toggled features, bug fixes, hardening, strncpy null-termination, EACCES→ENOENT fix, AS_FLAGS collision guards. | Shared |
-| **60_** | ZeroMount VFS driver. Path redirection via `getname()`, directory entry injection, d_path spoofing, xattr injection, statfs spoofing, bloom filter, ioctl interface. | Shared |
-| **70_** | KSU fork safety fixes. Null-termination, UID range corrections, zygote SID guards, supercall wiring. Small (~18 lines for SukiSU builtin, larger for others). | Per-variant |
-
-### Application Order
-
-```
-50_ → 51_ → 70_ → 60_ → fix-susfs-compat.sh (runtime)
-```
-
-50_ lays the SUSFS foundation. 51_ enhances it. 70_ fixes the KSU fork. 60_ adds ZeroMount on top. `fix-susfs-compat.sh` handles sublevel-specific issues that static patches can't cover.
+| **70_** | Variant safety fixes. Null-termination, UID range corrections, zygote SID guards, supercall wiring. | Per-variant |
 
 ---
 
@@ -125,19 +109,19 @@ CONFIG_HYBRIDMOUNT=y
 In-kernel VFS redirection backend, fetched from [Hybrid-Mount](https://github.com/Hybrid-Mount/meta-hybrid_mount) at build time. This replaced NoMount: there is no `CONFIG_NOMOUNT` or `CONFIG_ZEROMOUNT` symbol in any fragment. Module mounting itself is delegated to the installed metamodule, so install/update BruhMount when upgrading from an older build.
 
 ---
-
 ## KSU Variants
 
-Each variant is a different fork of KernelSU. The CI checks out the exact commit specified in the pin file, applies patches, and builds.
+Each variant is a different root solution. The CI checks out the exact commit
+specified in the pin file, applies patches, and builds.
 
 | Variant | Fork | Pin File |
 |---------|------|----------|
-| SukiSU Ultra | [SukiSU-Ultra/SukiSU-Ultra](https://github.com/SukiSU-Ultra/SukiSU-Ultra) | `sukisu-pin.txt` |
-| ReSukiSU | [ReSukiSU/ReSukiSU](https://github.com/ReSukiSU/ReSukiSU) | `resukisu-pin.txt` |
-| KernelSU-Next | [KernelSU-Next/KernelSU-Next](https://github.com/KernelSU-Next/KernelSU-Next) | `kernelsu-next-pin.txt` |
-| WildKSU | [WildKernels/Wild_KSU](https://github.com/WildKernels/Wild_KSU) | `wksu-pin.txt` |
+| OriginSU | [samakshkambxj/OriginSU](https://github.com/samakshkambxj/OriginSU) | `originsu-pin.txt` |
+| FinaSU | [LyraVoid/FinaSU](https://github.com/LyraVoid/FinaSU) | `finasu-pin.txt` |
 
-**SukiSU pin must point to the `builtin` branch.** The `main` branch lacks `CONFIG_KSU_SUSFS` in its Kconfig, which means `fs/susfs.o` never compiles and the build fails with undefined symbol errors at link time.
+**OriginSU pin tracks the `main` branch (development).** FinaSU tracks `master`.
+FinaSU is an LKM-based variant — it is not built into the GKI image and uses a
+separate docker DDK + cargo-ndk pipeline.
 
 To update a pin: change the commit hash in the pin file. Test with dry-test first.
 
@@ -164,36 +148,34 @@ Scripts in `build-helpers/` are called by CI at specific stages. They handle dif
 
 ### From GitHub Actions UI
 
-1. Go to **Actions** → pick the workflow for your variant (`build-sukisu.yml`, `build-resukisu.yml`, etc.)
+1. Go to **Actions** → **Build BruhKernel**
 2. Click **Run workflow**
 3. Fill in: `android_version`, `kernel_version`, `sub_level`, `os_patch_level`
-4. Toggle feature flags as needed (all default to on except `add_bbg` and `add_kpm`)
+4. Pick the root variant: `OriginSU` (GKI in-kernel build) or `FinaSU` (LKM variant, skipped in GKI builder)
+5. Toggle feature flags as needed (all default to on except `add_bbg` and `add_kpm`)
 
 ### From CLI
 
 ```bash
-# Single target build (all variants)
-gh workflow run kernel-custom.yml --ref main \
-  -f kernel_target="android12-5.10.209 (2024-05)"
-
 # Specific variant
-gh workflow run build-sukisu.yml --ref main \
+gh workflow run build.yml --ref main \
   -f android_version=android12 \
   -f kernel_version=5.10 \
   -f sub_level=209 \
-  -f os_patch_level=2024-05
+  -f os_patch_level=2024-05 \
+  -f ksu_variant=OriginSU
 ```
 
 ### Feature Flags
 
 | Flag | Default | Controls |
 |------|---------|----------|
-| `add_susfs` | true | Applies 50_ + 51_ patches |
-| `add_zeromount` | true | Applies 60_ patch |
+| `add_susfs` | true | Applies 50_ + 51_ patches (OriginSU and FinaSU bundle SUSFS internally, so these are typically skipped) |
+| `add_zeromount` | true | Applies 60_ patch (replaced by HybridMount in current builds) |
 | `add_zram` | true | Enables ZRAM config section |
 | `add_overlayfs_support` | true | Enables overlayfs config section |
 | `add_bbg` | false | Runs `setup-bbg.sh` |
-| `add_kpm` | false | Enables KPM config section |
+| `add_kpm` | false | Enables KPM config section (OriginSU only) |
 
 ### Dry-Testing (Patch Validation)
 
@@ -223,23 +205,23 @@ Not all kernel versions are identical. Key differences:
 
 | Kernel | Variants | Notable Differences |
 |--------|----------|---------------------|
-| 5.4 | 2 (SukiSU, ReSukiSU) | Pre-GKI. Requires `UAPI_HEADER_TEST=n`. No KSU-Next/WKSU (lack `TWA_RESUME`). Single sublevel (302 LTS). |
-| 5.10 | 4 | Baseline GKI. Has `HIDDEN_NAME` and `HARDENED` toggles (unique to 5.10). |
-| 5.15 | 4 | `struct nameidata` natively has `state` field (upstream patch adds it redundantly). |
-| 6.1 | 4 | `vfs_statx` takes `struct filename *`. `inode_permission` gained `mnt_userns` parameter. |
-| 6.6 | 4 | `SUS_PATH` absent from defconfig (not supported). `do_faccessat`/`do_sys_openat2` moved to `fs/open.c`. |
-| 6.12 | 4 | `SUS_PATH=n` (AS_FLAGS bit collision). LTO disabled (`none`). `fd_file()` accessor replaces `f.file`. |
+| 5.4 | 2 (OriginSU, FinaSU) | Pre-GKI. Requires `UAPI_HEADER_TEST=n`. |
+| 5.10 | 2 | Baseline GKI. |
+| 5.15 | 2 | `struct nameidata` natively has `state` field. |
+| 6.1 | 2 | `vfs_statx` takes `struct filename *`. `inode_permission` gained `mnt_userns` parameter. |
+| 6.6 | 2 | `SUS_PATH` absent from defconfig (not supported). `do_faccessat`/`do_sys_openat2` moved to `fs/open.c`. |
+| 6.12 | 2 | `SUS_PATH=n` (AS_FLAGS bit collision). LTO disabled (`none`). `fd_file()` accessor replaces `f.file`. |
 
 ---
 
 ## Updating Patches
 
-**50_ (upstream SUSFS):** Replace with the latest from [susfs4ksu](https://gitlab.com/simonpunk/susfs4ksu). After replacing, always re-test 51_ — context lines may have shifted.
+**50_ (upstream SUSFS):** OriginSU and FinaSU bundle SUSFS internally, so external 50_ patches are not applied.
 
-**51_ (enhancements):** Must be regenerated if 50_ changes. Apply 50_ to a clean kernel source, make your changes, diff against the post-50_ tree.
+**51_ (enhancements):** Not applicable — OriginSU and FinaSU handle SUSFS enhancements in their own source trees.
 
-**60_ (ZeroMount):** Independent of 50_/51_. Update separately.
+**60_ (ZeroMount):** Replaced by HybridMount VFS backend. Not applied.
 
-**70_ (KSU safety):** Regenerate when pinning to a new KSU fork commit. Diff the fork's `kernel/` directory to find what needs fixing.
+**70_ (variant safety):** Regenerate when pinning to a new variant commit. Diff the fork's `kernel/` directory to find what needs fixing.
 
 After any patch update: dry-test → smoke build (lowest + highest sublevel) → full matrix.

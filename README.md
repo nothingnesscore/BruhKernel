@@ -160,8 +160,17 @@ Both give you root with SUSFS built in. They differ in build model and features.
 
 | Variant | Best for | Notes |
 |---|---|---|
-| **OriginSU** | **Most people.** Recommended default. | GKI in-kernel build. Tracks upstream KernelSU closely via ReSukiSU lineage, supports KPM, built-in SUSFS and Origin Veil hiding. |
+| **OriginSU** | **Most people.** Recommended default. | GKI in-kernel build. Tracks upstream KernelSU via ReSukiSU lineage. Supports KPM, built-in SUSFS, **Origin Veil** root-probe detection and cloaking, OriginZygisk, OriginGuard module auditing, and OriginTune kernel tuning. |
 | **FinaSU** | LKM-based root with advanced hiding. | Loadable kernel module (`kernelsu.ko`) built via docker DDK + cargo-ndk. Built-in FolkZygisk, Sui (Shizuku API), NoMount VFS backend, and SUSFS. Not built into the GKI image — uses a separate LKM pipeline. |
+
+### OriginSU features (enabled in defconfig)
+
+| Feature | Kernel Config |
+|---|---|
+| Origin Veil (root-probe detection + per-app cloak) | `CONFIG_KSU_ORIGIN_VEIL=y` |
+| Tracepoint Syscall Redirect hook | `CONFIG_KSU_TRACEPOINT_HOOK=y` |
+| Kernel Patch Module (KPM) runtime | `CONFIG_KPM=y` |
+| SUSFS root hiding (all sub-options) | `CONFIG_KSU_SUSFS=y` + sub-options |
 
 Build one variant or both. Pick a single one and you only wait for one compile.
 
@@ -177,6 +186,11 @@ Build one variant or both. Pick a single one and you only wait for one compile.
    metamodule. Without it, modules install but do not take effect. FinaSU uses
    its built-in Folk-Mount/NoMount engine instead.
 3. **Reboot once more** after installing the manager.
+
+### Origin Veil setup
+
+After installing the OriginSU manager, open **Settings → Origin Lab → Origin Veil** to configure root-probe detection and per-app cloaking. Veil hides module mounts and root-probe paths from apps that scan for them.
+
 
 ### Updating after an OTA
 
