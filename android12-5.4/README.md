@@ -125,19 +125,19 @@ CONFIG_HYBRIDMOUNT=y
 In-kernel VFS redirection backend, fetched from [Hybrid-Mount](https://github.com/Hybrid-Mount/meta-hybrid_mount) at build time. This replaced NoMount: there is no `CONFIG_NOMOUNT` or `CONFIG_ZEROMOUNT` symbol in any fragment. Module mounting itself is delegated to the installed metamodule, so install/update BruhMount when upgrading from an older build.
 
 ---
-
 ## KSU Variants
 
-Each variant is a different fork of KernelSU. The CI checks out the exact commit specified in the pin file, applies patches, and builds.
+Each variant is a different root solution. The CI checks out the exact commit
+specified in the pin file, applies patches, and builds.
 
 | Variant | Fork | Pin File |
 |---------|------|----------|
-| SukiSU Ultra | [SukiSU-Ultra/SukiSU-Ultra](https://github.com/SukiSU-Ultra/SukiSU-Ultra) | `sukisu-pin.txt` |
-| ReSukiSU | [ReSukiSU/ReSukiSU](https://github.com/ReSukiSU/ReSukiSU) | `resukisu-pin.txt` |
-| KernelSU-Next | [KernelSU-Next/KernelSU-Next](https://github.com/KernelSU-Next/KernelSU-Next) | `kernelsu-next-pin.txt` |
-| WildKSU | [WildKernels/Wild_KSU](https://github.com/WildKernels/Wild_KSU) | `wksu-pin.txt` |
+| OriginSU | [samakshkambxj/OriginSU](https://github.com/samakshkambxj/OriginSU) | `originsu-pin.txt` |
+| FinaSU | [LyraVoid/FinaSU](https://github.com/LyraVoid/FinaSU) | `finasu-pin.txt` |
 
-**SukiSU pin must point to the `builtin` branch.** The `main` branch lacks `CONFIG_KSU_SUSFS` in its Kconfig, which means `fs/susfs.o` never compiles and the build fails with undefined symbol errors at link time.
+**OriginSU pin tracks the `main` branch (development).** FinaSU tracks `master`.
+FinaSU is an LKM-based variant — it is not built into the GKI image and uses a
+separate docker DDK + cargo-ndk pipeline.
 
 To update a pin: change the commit hash in the pin file. Test with dry-test first.
 
