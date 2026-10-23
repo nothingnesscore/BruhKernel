@@ -52,8 +52,6 @@ on:
         default: "OriginSU"
         options:
           - OriginSU
-          - FinaSU
-          - All
       add_susfs:
         description: "Add SUSFS root-hiding"
         type: boolean

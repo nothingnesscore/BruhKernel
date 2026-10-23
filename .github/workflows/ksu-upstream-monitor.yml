@@ -15,7 +15,6 @@ on:
         options:
           - All
           - OriginSU
-          - FinaSU
         default: "All"
 
 permissions:
@@ -46,15 +45,12 @@ jobs:
           # Variant -> upstream repo, branch to track, pin filename.
           declare -A REPO=(
             [OriginSU]="samakshkambxj/OriginSU"
-            [FinaSU]="LyraVoid/FinaSU"
           )
           declare -A BRANCH=(
             [OriginSU]="main"
-            [FinaSU]="master"
           )
           declare -A PINFILE=(
             [OriginSU]="originsu-pin.txt"
-            [FinaSU]="finasu-pin.txt"
           )
 
           VERSION_DIRS=(
@@ -62,7 +58,7 @@ jobs:
             android14-5.15 android14-6.1 android15-6.6 android16-6.12
           )
           AVAIL_VARIANTS=(
-            OriginSU FinaSU
+            OriginSU
           )
 
           # Resolve each variant's branch tip once per run.

@@ -306,9 +306,11 @@ jobs:
         fi
 
     - name: Fix SUSFS Compatibility
-      if: inputs.add_susfs
+      if: inputs.add_susfs && matrix.variant.name != 'OriginSU'
       working-directory: ${{ env.KERNEL_ROOT }}/common
       run: |
+        # OriginSU bundles SUSFS internally (kernel/susfs/), so the compatibility
+        # stubs from fix-susfs-compat.sh would conflict and break the build.
         FIX="$GITHUB_WORKSPACE/$VERSION_DIR/build-helpers/fix-susfs-compat.sh"
         [ -f "$FIX" ] && bash "$FIX" . "$SUBLEVEL" "$ANDROID_VER" "$KERNEL_VER" "$KERNEL_PATCHES" || true
 

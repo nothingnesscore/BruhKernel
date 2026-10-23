@@ -32,7 +32,7 @@ on:
       ksu_variant:
         description: "Root variant"
         type: choice
-        options: [OriginSU, FinaSU]
+        options: [OriginSU]
         default: "OriginSU"
       variant_commit:
         description: "Variant commit (empty = pinned default)"
@@ -149,8 +149,7 @@ jobs:
 
         case "$KSU_VARIANT" in
           OriginSU) DEFCONFIG_FRAGMENT="originsu_gki.fragment" ;;
-          FinaSU)   DEFCONFIG_FRAGMENT="finasu_gki.fragment" ;;
-          *)        DEFCONFIG_FRAGMENT="sukisu_gki.fragment" ;;
+          *)        DEFCONFIG_FRAGMENT="originsu_gki.fragment" ;;
         esac
 
         {
@@ -209,15 +208,9 @@ jobs:
         case "$KSU_VARIANT" in
           OriginSU)
             curl -LSs "https://raw.githubusercontent.com/samakshkambxj/OriginSU/main/kernel/setup.sh" | bash -s main
-            KSU_DIR="OriginSU"
+            KSU_DIR="KernelSU"
             echo "KSU_DIR=$KSU_DIR" >> "$GITHUB_ENV"
             PIN_FILE="originsu-pin.txt"
-            ;;
-          FinaSU)
-            echo "FinaSU is an LKM-based variant; dry-test skips kernel setup."
-            KSU_DIR="FinaSU"
-            echo "KSU_DIR=$KSU_DIR" >> "$GITHUB_ENV"
-            PIN_FILE="finasu-pin.txt"
             ;;
           *)
             echo "::error::Unknown variant $KSU_VARIANT"
@@ -243,11 +236,10 @@ jobs:
       run: |
         case "$KSU_VARIANT" in
           OriginSU) PATCH_DIR="$GITHUB_WORKSPACE/$VERSION_DIR/OriginSU/patches" ;;
-          FinaSU)   PATCH_DIR="$GITHUB_WORKSPACE/$VERSION_DIR/FinaSU/patches" ;;
         esac
         RESULTS=""
 
-        # OriginSU and FinaSU bundle SUSFS internally; no external 50_/51_ patches.
+        # OriginSU bundles SUSFS internally; no external 50_/51_ patches.
         PATCH_70="$PATCH_DIR/70_ksu_safety-${KSU_VARIANT,,}-${KERNEL_VER}.patch"
         if [ -s "$PATCH_70" ]; then
           if patch -p1 --no-backup-if-mismatch -d "$KERNEL_ROOT/$KSU_DIR" < "$PATCH_70"; then
@@ -269,7 +261,10 @@ jobs:
         fi
 
     - name: Fix SUSFS Compatibility
+      if: ${{ inputs.ksu_variant != 'OriginSU' }}
       run: |
+        # OriginSU bundles SUSFS internally (kernel/susfs/), so the compatibility
+        # stubs from fix-susfs-compat.sh would conflict and break the build.
         FIX="$GITHUB_WORKSPACE/$VERSION_DIR/build-helpers/fix-susfs-compat.sh"
         [ -f "$FIX" ] && bash "$FIX" "$KERNEL_ROOT/common" "$SUBLEVEL" "$ANDROID_VER" "$KERNEL_VER" "" || true
 

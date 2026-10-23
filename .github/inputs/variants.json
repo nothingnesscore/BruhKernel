@@ -16,22 +16,5 @@
     "supports_kpm": true,
     "build_model": "gki",
     "skip_gki_build": false
-  },
-  "FinaSU": {
-    "name": "FinaSU",
-    "repo": "LyraVoid/FinaSU",
-    "setup_raw": "master",
-    "setup_branch": "master",
-    "setup_script": "build.sh",
-    "dir": "FinaSU",
-    "pin": "finasu-pin.txt",
-    "patchdir": "FinaSU",
-    "safety": "finasu",
-    "fragment": "finasu_gki",
-    "suffix": "FinaSU",
-    "kbuild_fix": false,
-    "supports_kpm": false,
-    "build_model": "lkm",
-    "skip_gki_build": true
   }
 }
