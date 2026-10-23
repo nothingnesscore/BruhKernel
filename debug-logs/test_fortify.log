@@ -1,0 +1,44 @@
+ok: unsafe memchr() usage correctly detected with '__read_overflow' in /home/runner/work/BruhKernel/BruhKernel/android14-6.1-138/common/lib/test_fortify/read_overflow-memchr.c
+lib/test_fortify/read_overflow-memchr.log.o:                  U __read_overflow
+ok: unsafe memchr_inv() usage correctly detected with '__read_overflow' in /home/runner/work/BruhKernel/BruhKernel/android14-6.1-138/common/lib/test_fortify/read_overflow-memchr_inv.c
+lib/test_fortify/read_overflow-memchr_inv.log.o:                  U __read_overflow
+ok: unsafe memcmp() usage correctly detected with '__read_overflow' in /home/runner/work/BruhKernel/BruhKernel/android14-6.1-138/common/lib/test_fortify/read_overflow-memcmp.c
+lib/test_fortify/read_overflow-memcmp.log.o:                  U __read_overflow
+ok: unsafe memscan() usage correctly detected with '__read_overflow' in /home/runner/work/BruhKernel/BruhKernel/android14-6.1-138/common/lib/test_fortify/read_overflow-memscan.c
+lib/test_fortify/read_overflow-memscan.log.o:                  U __read_overflow
+ok: unsafe memcmp() usage correctly detected with '__read_overflow2' in /home/runner/work/BruhKernel/BruhKernel/android14-6.1-138/common/lib/test_fortify/read_overflow2-memcmp.c
+lib/test_fortify/read_overflow2-memcmp.log.o:                  U __read_overflow2
+ok: unsafe memcpy() usage correctly detected with '__read_overflow2' in /home/runner/work/BruhKernel/BruhKernel/android14-6.1-138/common/lib/test_fortify/read_overflow2-memcpy.c
+lib/test_fortify/read_overflow2-memcpy.log.o:                  U __read_overflow2
+ok: unsafe memmove() usage correctly detected with '__read_overflow2' in /home/runner/work/BruhKernel/BruhKernel/android14-6.1-138/common/lib/test_fortify/read_overflow2-memmove.c
+lib/test_fortify/read_overflow2-memmove.log.o:                  U __read_overflow2
+ok: unsafe memcpy() usage correctly detected with '__read_overflow2_field' in /home/runner/work/BruhKernel/BruhKernel/android14-6.1-138/common/lib/test_fortify/read_overflow2_field-memcpy.c
+lib/test_fortify/read_overflow2_field-memcpy.log.o:                  U __read_overflow2_field
+ok: unsafe memmove() usage correctly detected with '__read_overflow2_field' in /home/runner/work/BruhKernel/BruhKernel/android14-6.1-138/common/lib/test_fortify/read_overflow2_field-memmove.c
+lib/test_fortify/read_overflow2_field-memmove.log.o:                  U __read_overflow2_field
+ok: unsafe memcpy() usage correctly detected with '__write_overflow' in /home/runner/work/BruhKernel/BruhKernel/android14-6.1-138/common/lib/test_fortify/write_overflow-memcpy.c
+lib/test_fortify/write_overflow-memcpy.log.o:                  U __write_overflow
+ok: unsafe memmove() usage correctly detected with '__write_overflow' in /home/runner/work/BruhKernel/BruhKernel/android14-6.1-138/common/lib/test_fortify/write_overflow-memmove.c
+lib/test_fortify/write_overflow-memmove.log.o:                  U __write_overflow
+ok: unsafe memset() usage correctly detected with '__write_overflow' in /home/runner/work/BruhKernel/BruhKernel/android14-6.1-138/common/lib/test_fortify/write_overflow-memset.c
+lib/test_fortify/write_overflow-memset.log.o:                  U __write_overflow
+ok: unsafe strcpy() usage correctly detected with '__write_overflow' in /home/runner/work/BruhKernel/BruhKernel/android14-6.1-138/common/lib/test_fortify/write_overflow-strcpy-lit.c
+lib/test_fortify/write_overflow-strcpy-lit.log.o:                  U __write_overflow
+ok: unsafe strcpy() usage correctly detected with '__write_overflow' in /home/runner/work/BruhKernel/BruhKernel/android14-6.1-138/common/lib/test_fortify/write_overflow-strcpy.c
+lib/test_fortify/write_overflow-strcpy.log.o:                  U __write_overflow
+ok: unsafe strlcpy() usage correctly detected with '__write_overflow' in /home/runner/work/BruhKernel/BruhKernel/android14-6.1-138/common/lib/test_fortify/write_overflow-strlcpy-src.c
+lib/test_fortify/write_overflow-strlcpy-src.log.o:                  U __write_overflow
+ok: unsafe strlcpy() usage correctly detected with '__write_overflow' in /home/runner/work/BruhKernel/BruhKernel/android14-6.1-138/common/lib/test_fortify/write_overflow-strlcpy.c
+lib/test_fortify/write_overflow-strlcpy.log.o:                  U __write_overflow
+ok: unsafe strncpy() usage correctly detected with '__write_overflow' in /home/runner/work/BruhKernel/BruhKernel/android14-6.1-138/common/lib/test_fortify/write_overflow-strncpy-src.c
+lib/test_fortify/write_overflow-strncpy-src.log.o:                  U __write_overflow
+ok: unsafe strncpy() usage correctly detected with '__write_overflow' in /home/runner/work/BruhKernel/BruhKernel/android14-6.1-138/common/lib/test_fortify/write_overflow-strncpy.c
+lib/test_fortify/write_overflow-strncpy.log.o:                  U __write_overflow
+ok: unsafe strscpy() usage correctly detected with '__write_overflow' in /home/runner/work/BruhKernel/BruhKernel/android14-6.1-138/common/lib/test_fortify/write_overflow-strscpy.c
+lib/test_fortify/write_overflow-strscpy.log.o:                  U __write_overflow
+ok: unsafe memcpy() usage correctly detected with '__write_overflow_field' in /home/runner/work/BruhKernel/BruhKernel/android14-6.1-138/common/lib/test_fortify/write_overflow_field-memcpy.c
+lib/test_fortify/write_overflow_field-memcpy.log.o:                  U __write_overflow_field
+ok: unsafe memmove() usage correctly detected with '__write_overflow_field' in /home/runner/work/BruhKernel/BruhKernel/android14-6.1-138/common/lib/test_fortify/write_overflow_field-memmove.c
+lib/test_fortify/write_overflow_field-memmove.log.o:                  U __write_overflow_field
+ok: unsafe memset() usage correctly detected with '__write_overflow_field' in /home/runner/work/BruhKernel/BruhKernel/android14-6.1-138/common/lib/test_fortify/write_overflow_field-memset.c
+lib/test_fortify/write_overflow_field-memset.log.o:                  U __write_overflow_field
