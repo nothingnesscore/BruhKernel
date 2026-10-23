@@ -56,6 +56,10 @@ on:
       add_perf_patches:
         type: boolean
         default: true
+      add_bbrv3:
+        description: "Apply BBRv3 congestion control (better latency on lossy mobile links)"
+        type: boolean
+        default: true
       sukisu_commit:
         type: string
         default: ""
@@ -310,11 +314,15 @@ jobs:
         [ -f "$FIX" ] && bash "$FIX" . "$SUBLEVEL" "$ANDROID_VER" "$KERNEL_VER" "$KERNEL_PATCHES" || true
 
     - name: Apply Kernel Patches
-      if: inputs.add_ptrace_fix || inputs.add_perf_patches
+      if: inputs.add_ptrace_fix || inputs.add_perf_patches || inputs.add_bbrv3
       working-directory: ${{ env.KERNEL_ROOT }}/common
       env:
         ADD_PTRACE: ${{ inputs.add_ptrace_fix }}
         ADD_PERF: ${{ inputs.add_perf_patches }}
+        ADD_BBRV3: ${{ inputs.add_bbrv3 }}
+        # ANDROID_VER is only set on the "Setup Build Environment" step, so the
+        # BBRv3 patch filename (androidNN-KERNEL_VER.patch) needs it passed here.
+        ANDROID_VER: ${{ inputs.android_version }}
       run: |
         bash "$GITHUB_WORKSPACE/android12-5.10/build-helpers/apply-kernel-patches.sh" . "$KERNEL_VER" "$KERNEL_PATCHES"
 

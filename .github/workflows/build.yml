@@ -64,6 +64,10 @@ on:
         description: "Add ZRAM with LZ4K/LZ4KD compression"
         type: boolean
         default: true
+      add_bbrv3:
+        description: "Apply BBRv3 + fq (lower latency on lossy mobile uplinks)"
+        type: boolean
+        default: true
       add_bbg:
         description: "Add Baseband Guard"
         type: boolean
@@ -104,6 +108,12 @@ jobs:
       variants: ${{ steps.variants.outputs.list }}
       matrix: ${{ steps.variants.outputs.matrix }}
     steps:
+      # The resolve job reads .github/inputs/*.json, so it must have the
+      # repository checked out. Without this the registry lookup failed with
+      # "targets.json missing" and every dispatch died before building.
+      - name: Checkout
+        uses: actions/checkout@v4
+
       - name: Parse inputs
         id: parse
         run: |
@@ -255,6 +265,7 @@ jobs:
       # only existed to survive a push trigger and are no longer needed.
       add_susfs: ${{ inputs.add_susfs }}
       add_zram: ${{ inputs.add_zram }}
+      add_bbrv3: ${{ inputs.add_bbrv3 }}
       add_bbg: ${{ inputs.add_bbg }}
       add_overlayfs_support: ${{ inputs.add_overlayfs_support }}
       add_kpm: ${{ inputs.add_kpm }}
